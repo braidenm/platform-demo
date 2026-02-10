@@ -57,10 +57,20 @@ jobs:
             FULL_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
             TAG="${{ github.sha }}"
             
-            curl -X POST -H "Authorization: token $INFRA_REPO_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository_owner }}/infrastructure/dispatches \
-            -d "{\"event_type\":\"service_updated\", \"client_payload\": {\"stack\": \"backend\", \"service\": \"platform-demo\", \"image\": \"$FULL_IMAGE\", \"tag\": \"$TAG\"}}"
+            RESPONSE=$(curl -s -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $INFRA_REPO_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/${{ github.repository_owner }}/infrastructure/dispatches \
+              -d "{\"event_type\":\"service_updated\", \"client_payload\": {\"stack\": \"backend\", \"service\": \"platform-demo\", \"image\": \"$FULL_IMAGE\", \"tag\": \"$TAG\"}}")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -c 4)
+            if [ "$HTTP_CODE" -eq 204 ]; then
+              echo "Successfully triggered infrastructure update."
+            else
+              echo "Failed to trigger infrastructure update. HTTP status: $HTTP_CODE"
+              echo "Response: $(echo "$RESPONSE" | head -c -4)"
+              exit 1
+            fi
           else
             echo "INFRA_REPO_TOKEN not set, skipping trigger."
           fi
