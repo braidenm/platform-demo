@@ -51,16 +51,18 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           INFRA_REPO_TOKEN: ${{ secrets.INFRA_REPO_TOKEN }}
+          # If your infrastructure repo is named differently, update it here:
+          INFRA_REPO: home-lab-infrastructure
         run: |
           if [ -n "$INFRA_REPO_TOKEN" ]; then
-            echo "Triggering infrastructure update..."
+            echo "Triggering infrastructure update for ${{ github.repository_owner }}/$INFRA_REPO..."
             FULL_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
             TAG="${{ github.sha }}"
             
             RESPONSE=$(curl -s -w "%{http_code}" -X POST \
               -H "Authorization: Bearer $INFRA_REPO_TOKEN" \
               -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/${{ github.repository_owner }}/infrastructure/dispatches \
+              https://api.github.com/repos/${{ github.repository_owner }}/$INFRA_REPO/dispatches \
               -d "{\"event_type\":\"service_updated\", \"client_payload\": {\"stack\": \"backend\", \"service\": \"platform-demo\", \"image\": \"$FULL_IMAGE\", \"tag\": \"$TAG\"}}")
             
             HTTP_CODE=$(echo "$RESPONSE" | tail -c 4)
@@ -69,6 +71,11 @@ jobs:
             else
               echo "Failed to trigger infrastructure update. HTTP status: $HTTP_CODE"
               echo "Response: $(echo "$RESPONSE" | head -c -4)"
+              echo ""
+              echo "TROUBLESHOOTING 404:"
+              echo "1. Verify that 'https://github.com/${{ github.repository_owner }}/$INFRA_REPO' exists."
+              echo "2. Ensure INFRA_REPO_TOKEN has 'repo' scope (Classic) or 'Metadata: Read' & 'Actions: Read/Write' (Fine-grained) on the target repo."
+              echo "3. GitHub returns 404 if the repo is private and the token doesn't have access."
               exit 1
             fi
           else
