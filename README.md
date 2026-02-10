@@ -77,8 +77,8 @@ The `identity` module is designed to be a standalone IAM provider for all my app
 If you are deploying this application to a server with existing PostgreSQL and MongoDB instances, you can configure the connection using the following environment variables:
 
 #### PostgreSQL
-- `DB_HOST`: Hostname of your Postgres server (Default: `localhost`).
-- `DB_PORT`: Port of your Postgres server (Default: `5433`).
+- `DB_HOST`: Hostname of your Postgres server (Default: `postgres`).
+- `DB_PORT`: Port of your Postgres server (Default: `5432`).
 - `POSTGRES_DB`: Database name (Default: `platformdemo`).
 - `POSTGRES_USER`: Database username (Default: `platformdemo`).
 - `POSTGRES_PASSWORD`: Database password.
@@ -88,7 +88,7 @@ If you are deploying this application to a server with existing PostgreSQL and M
 #### MongoDB
 - `SPRING_DATA_MONGODB_URI`: Full MongoDB connection string (e.g., `mongodb://user:pass@host:27017/db?authSource=admin`).
 - *Alternatively, use individual variables:*
-    - `MONGO_HOST`: Hostname (Default: `localhost`).
+    - `MONGO_HOST`: Hostname (Default: `mongodb`).
     - `MONGO_PORT`: Port (Default: `27017`).
     - `MONGO_DB`: Database name (Default: `platformdemo`).
     - `MONGO_ROOT_USER`: Username (Default: `platformdemo`).
