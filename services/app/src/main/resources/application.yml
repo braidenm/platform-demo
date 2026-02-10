@@ -19,7 +19,12 @@ spring:
             non_contextual_creation: true
   data:
     mongodb:
-      uri: "${SPRING_DATA_MONGODB_URI:mongodb://${MONGO_ROOT_USER:platformdemo}:${MONGO_ROOT_PASSWORD:platformdemo_password}@${MONGO_HOST:mongodb}:${MONGO_PORT:27017}/${MONGO_DB:platformdemo}?authSource=${MONGO_AUTH_SOURCE:admin}}"
+      host: "${MONGO_HOST:mongodb}"
+      port: "${MONGO_PORT:27017}"
+      database: "${MONGO_DB:platformdemo}"
+      username: "${MONGO_ROOT_USER:platformdemo}"
+      password: "${MONGO_ROOT_PASSWORD:platformdemo_password}"
+      authentication-database: "${MONGO_AUTH_SOURCE:admin}"
   jackson:
     serialization:
       write-dates-as-timestamps: false
