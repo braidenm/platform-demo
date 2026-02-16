@@ -43,9 +43,10 @@ class TestDeploymentController(
     private val postgresRepo: PostgresTestRepository,
     private val mongoRepo: MongoTestRepository
 ) {
-
+private val logger = org.slf4j.LoggerFactory.getLogger(TestDeploymentController::class.java)
     @PostMapping("/postgres")
     fun createPostgres(@RequestBody message: String): PostgresTestEntity {
+        logger.info("Creating Postgres entity with message: $message")
         return postgresRepo.save(PostgresTestEntity(message = message))
     }
 
