@@ -1,0 +1,25 @@
+@startuml
+title Token Exchange for Org/App Context Switch
+
+actor User
+participant "App Service" as APP
+participant "Identity Service (AuthN)" as IDN
+participant "Authorization Policy (AuthZ/FGA)" as POL
+
+User -> APP: Switch context (audience, context_type, org_id?, env)
+APP -> IDN: POST /identity/v1/token/exchange
+note over IDN,POL
+Monolith now: in-process check via AuthorizationPort
+Later: adapter can call /identity/v1/authorize/check
+end note
+IDN -> POL: AuthorizationPort.check(subject, action, resource, aud, org_id)
+POL --> IDN: allow/deny (+ decision_id)
+alt allow
+  IDN --> APP: exchanged access token (short TTL)
+  APP --> User: New active context
+else deny
+  IDN --> APP: 403 Forbidden
+  APP --> User: Context switch denied
+end
+
+@enduml

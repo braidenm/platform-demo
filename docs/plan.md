@@ -5,7 +5,8 @@
 This project aims to build a robust, scalable, and flexible modular monolith using Spring Boot and Kotlin. The focus is on a high-maturity architectural stack: DDD, CQRS, and Event-Driven Design.
 
 ### Quality Feedback & Analysis
-*   **Modular Monolith Choice**: This is the correct starting point. It avoids the "distributed monolith" trap while allowing for clear boundaries. We use a **multi-module Gradle setup** to enforce strict boundaries while keeping a **single Spring Boot application** as the entry point (`app` module). This provides the best of both worlds: modularity and simplicity of deployment.
+*   **Modular Monolith Choice**: It avoids the "distributed monolith" trap while allowing for clear boundaries. We use a **multi-module Gradle setup** to enforce strict boundaries while keeping a **single Spring Boot application** as the entry point (`app` module). This provides the best of both worlds: modularity and simplicity of deployment.
+*   **Incubation Path for Small Apps**: This modular app is an incubation platform. New smaller product ideas can be prototyped as modules first, validated quickly, and extracted to standalone microservices once they are operationally ready.
 *   **Multi-tenancy & Identity**: The requirement for "Account user with multiple organizations" and "Help desk roles" suggests a relationship-based access control model. **Fine-Grained Authorization (FGA)** (inspired by Google Zanzibar) is highly recommended over traditional RBAC, as it handles complex relationships (e.g., `User X is admin of Org Y`, `User Z is help-desk for Org Y's data`) much more naturally.
 *   **Event-Driven & CQRS**: You mentioned Axon. While powerful for Event Sourcing (ES), it can be opinionated. If you want to keep it "free" and flexible, we should decide if we need **Full Event Sourcing** (storing events as the source of truth) or just **Event-Driven CQRS** (using events to sync read models).
 *   **Sandbox Mode**: To implement this effectively, we should treat "Sandbox" as a first-class execution context. This can be achieved via a `X-Sandbox` header or a flag in the Tenant context, which determines whether the logic interacts with "Live" or "Mock/Isolated" infrastructure.
@@ -24,6 +25,15 @@ To ensure strict boundaries and easy extraction to microservices later, we use a
 *   `:common`: Shared kernels, DTOs, and utility logic (Imported by all).
 *   `:gateway`: Entry point logic (if needed beyond standard Spring Boot routing).
 *   `:app`: The executable Spring Boot application that aggregates all modules.
+
+### Module Communication (Current Strategy)
+*   **Single Repo First**: Keep modules in the same repository while domains are still evolving.
+*   **In-Process Calls**: Modules call each other through Spring interfaces/beans (no internal HTTP between Gradle modules).
+*   **Contract Boundary**: Domain modules should depend on identity contracts/interfaces, not identity persistence internals.
+*   **Extraction Path**: When ready, keep the same contract and swap implementation to HTTP adapters targeting the extracted service.
+*   **Example (Now)**: `orders` module calls `AuthorizationPort.check(...)` directly through an injected bean.
+*   **Example (Later)**: `orders` keeps calling `AuthorizationPort.check(...)`, but the implementation delegates to `POST /identity/v1/authorize/check`.
+*   **Identity Internal Boundaries**: Within `:identity`, keep `auth` and `authz` as separate package sections from the start.
 
 ---
 
@@ -54,6 +64,7 @@ To ensure strict boundaries and easy extraction to microservices later, we use a
     *   Example: `(Object: Org:123, Relation: Member, Subject: User:abc)`
     *   This allows the "Help Desk" use case by adding a `Relation: Support` between a system admin and a customer organization.
 *   **Token Exchange**: The Identity service will support issuing tokens for different audiences/apps.
+*   **Future Extraction**: The Role/FGA policy boundary is designed to be extracted into a standalone authorization service once the modular monolith flows are stable.
 
 ### 4.2. Event-Driven CQRS
 *   **Internal**: Axon Framework will manage the Command Bus and Event Store (persisted in Postgres).
@@ -74,9 +85,6 @@ We currently use a **Schema-per-Module** strategy in PostgreSQL.
     *   Slightly more complex setup (requires `currentSchema` or `search_path`).
     *   Cross-module joins are more explicit.
 
-**Alternative: Single Schema**
-If you prefer a simpler model, you can change `DB_SCHEMAS` to just `public` or `platform`. All modules will then share the same namespace. This is easier for small teams but requires more discipline in naming tables (e.g., prefixing tables with the module name like `identity_users`).
-
 ---
 
 ## 5. Implementation Roadmap
@@ -88,6 +96,7 @@ If you prefer a simpler model, you can change `DB_SCHEMAS` to just `public` or `
     *   User registration and authentication (JWT).
     *   Organization management.
     *   Lightweight FGA implementation.
+    *   See [Identity Service Plan](./identity/plan.md) for details.
 
 ---
 

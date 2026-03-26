@@ -1,0 +1,23 @@
+@startuml
+title Controlled Impersonation (Later Phase)
+
+actor "System Admin" as SA
+participant "Support Console" as APP
+participant "Identity Service (AuthN)" as ID
+participant "Authorization Policy (AuthZ/FGA)" as POL
+database "Audit Store" as AUD
+
+SA -> APP: Request "view as user" with reason
+APP -> ID: POST /identity/v1/token/exchange\n(as_user_id, reason)
+ID -> POL: Validate impersonation grant + scope + TTL policy
+POL --> ID: allow/deny
+alt allow
+ID -> AUD: Write impersonation event
+ID --> APP: impersonation token\n(act=admin, sub=target, short TTL)
+APP --> SA: Scoped support session
+else deny
+ID --> APP: 403 Forbidden
+APP --> SA: Impersonation denied
+end
+
+@enduml

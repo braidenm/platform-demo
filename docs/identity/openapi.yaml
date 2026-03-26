@@ -1,0 +1,1326 @@
+openapi: 3.1.0
+info:
+  title: Platform Demo Identity and Auth API
+  version: 1.1.0
+  summary: Event-first API contract for identity and auth.
+  description: |
+    Event-first contract for identity and auth in a modular monolith with a microservice extraction path.
+
+    Design intent:
+    - Most state-changing operations are command endpoints that return `202 Accepted`.
+    - Command processing emits domain events and updates read models asynchronously.
+    - Auth/session/token endpoints remain synchronous for practical UX.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Auth
+  - name: Commands
+  - name: Query
+  - name: Events
+security:
+  - bearerAuth: []
+
+paths:
+  /identity/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate user and return access and refresh tokens
+      operationId: authLogin
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /identity/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate refresh token and mint a new access token
+      operationId: authRefresh
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token pair rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /identity/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token and close session
+      operationId: authLogout
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Logged out
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /identity/v1/token/exchange:
+    post:
+      tags: [Auth]
+      summary: Exchange current auth context for a scoped access token
+      operationId: tokenExchange
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenExchangeRequest'
+      responses:
+        '200':
+          description: Exchanged access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/me:
+    get:
+      tags: [Query]
+      summary: Get current caller identity and active context
+      operationId: me
+      responses:
+        '200':
+          description: Current user context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /identity/v1/authorize/check:
+    post:
+      tags: [Query]
+      summary: Evaluate a single authorization decision
+      operationId: authorizeCheck
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizationCheckRequest'
+      responses:
+        '200':
+          description: Authorization decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationCheckResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/authorize/batch-check:
+    post:
+      tags: [Query]
+      summary: Evaluate multiple authorization decisions in one request
+      operationId: authorizeBatchCheck
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizationBatchCheckRequest'
+      responses:
+        '200':
+          description: Batch authorization decisions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationBatchCheckResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/commands/register-user:
+    post:
+      tags: [Commands]
+      summary: Submit register-user command
+      description: Public command endpoint for sign-up; command is processed asynchronously.
+      operationId: commandRegisterUser
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUserCommand'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedCommand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /identity/v1/commands/create-organization:
+    post:
+      tags: [Commands]
+      summary: Submit create-organization command
+      operationId: commandCreateOrganization
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationCommand'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedCommand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/commands/invite-organization-member:
+    post:
+      tags: [Commands]
+      summary: Submit invite-organization-member command
+      operationId: commandInviteOrganizationMember
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteOrganizationMemberCommand'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedCommand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/commands/assign-organization-role:
+    post:
+      tags: [Commands]
+      summary: Submit assign-organization-role command
+      operationId: commandAssignOrganizationRole
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignOrganizationRoleCommand'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedCommand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/commands/create-audience-grant:
+    post:
+      tags: [Commands]
+      summary: Submit create-audience-grant command
+      operationId: commandCreateAudienceGrant
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAudienceGrantCommand'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedCommand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/commands/revoke-audience-grant:
+    post:
+      tags: [Commands]
+      summary: Submit revoke-audience-grant command
+      operationId: commandRevokeAudienceGrant
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeAudienceGrantCommand'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedCommand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/commands/create-impersonation-grant:
+    post:
+      tags: [Commands]
+      summary: Submit create-impersonation-grant command
+      operationId: commandCreateImpersonationGrant
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateImpersonationGrantCommand'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedCommand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/commands/deactivate-user:
+    post:
+      tags: [Commands]
+      summary: Submit deactivate-user command
+      operationId: commandDeactivateUser
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeactivateUserCommand'
+      responses:
+        '202':
+          $ref: '#/components/responses/AcceptedCommand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/commands/{commandId}:
+    get:
+      tags: [Query]
+      summary: Get command processing status
+      operationId: getCommandStatus
+      parameters:
+        - $ref: '#/components/parameters/CommandId'
+      responses:
+        '200':
+          description: Command processing status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /identity/v1/users/{userId}:
+    get:
+      tags: [Query]
+      summary: Get user read model
+      operationId: getUserReadModel
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User read model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /identity/v1/organizations/{orgId}/members/{userId}:
+    get:
+      tags: [Query]
+      summary: Get org membership read model
+      operationId: getOrganizationMembershipReadModel
+      parameters:
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Organization membership read model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgMembership'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /identity/v1/audiences/{audience}/grants:
+    get:
+      tags: [Query]
+      summary: List audience grants read model
+      operationId: listAudienceGrantsReadModel
+      parameters:
+        - $ref: '#/components/parameters/Audience'
+        - $ref: '#/components/parameters/SubjectTypeFilter'
+        - $ref: '#/components/parameters/SubjectIdFilter'
+        - $ref: '#/components/parameters/OrgIdFilter'
+      responses:
+        '200':
+          description: Audience grants list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudienceGrantListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/events:
+    get:
+      tags: [Events]
+      summary: Query emitted identity/auth domain events
+      operationId: listEvents
+      parameters:
+        - $ref: '#/components/parameters/EventTypeFilter'
+        - $ref: '#/components/parameters/AggregateTypeFilter'
+        - $ref: '#/components/parameters/AggregateIdFilter'
+        - $ref: '#/components/parameters/CorrelationIdFilter'
+        - $ref: '#/components/parameters/FromOffset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Event page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /identity/v1/events/{eventId}:
+    get:
+      tags: [Events]
+      summary: Get a specific emitted event
+      operationId: getEventById
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Event envelope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /identity/v1/events/stream:
+    get:
+      tags: [Events]
+      summary: Stream emitted events as Server-Sent Events
+      operationId: streamEvents
+      parameters:
+        - $ref: '#/components/parameters/FromOffset'
+      responses:
+        '200':
+          description: SSE stream carrying JSON-serialized EventEnvelope payloads
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  event: identity.user.registered
+                  id: evt_01J9Y8Z2A
+                  data: {"id":"evt_01J9Y8Z2A","type":"identity.user.registered"}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CommandId:
+      name: commandId
+      in: path
+      required: true
+      schema:
+        type: string
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema:
+        type: string
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    OrgId:
+      name: orgId
+      in: path
+      required: true
+      schema:
+        type: string
+    Audience:
+      name: audience
+      in: path
+      required: true
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Required for safe retries on command endpoints in production.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+    SubjectTypeFilter:
+      name: subject_type
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/SubjectType'
+    SubjectIdFilter:
+      name: subject_id
+      in: query
+      required: false
+      schema:
+        type: string
+    OrgIdFilter:
+      name: org_id
+      in: query
+      required: false
+      schema:
+        type: string
+    EventTypeFilter:
+      name: event_type
+      in: query
+      required: false
+      schema:
+        type: string
+    AggregateTypeFilter:
+      name: aggregate_type
+      in: query
+      required: false
+      schema:
+        type: string
+    AggregateIdFilter:
+      name: aggregate_id
+      in: query
+      required: false
+      schema:
+        type: string
+    CorrelationIdFilter:
+      name: correlation_id
+      in: query
+      required: false
+      schema:
+        type: string
+    FromOffset:
+      name: from_offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 100
+
+  responses:
+    AcceptedCommand:
+      description: Command accepted for asynchronous processing
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CommandAcceptedResponse'
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Authenticated but not authorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    RateLimited:
+      description: Rate limited
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    RegisterUserCommand:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+
+    CreateOrganizationCommand:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        slug:
+          type: string
+          minLength: 3
+          maxLength: 120
+
+    InviteOrganizationMemberCommand:
+      type: object
+      required: [org_id, email, role]
+      properties:
+        org_id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/OrgRole'
+
+    AssignOrganizationRoleCommand:
+      type: object
+      required: [org_id, user_id, role]
+      properties:
+        org_id:
+          type: string
+        user_id:
+          type: string
+        role:
+          $ref: '#/components/schemas/OrgRole'
+
+    CreateAudienceGrantCommand:
+      type: object
+      required: [subject_type, subject_id, audience, context_type, role]
+      properties:
+        subject_type:
+          $ref: '#/components/schemas/SubjectType'
+        subject_id:
+          type: string
+        audience:
+          type: string
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        org_id:
+          type: string
+          nullable: true
+          description: Required when `context_type=org`; omitted for `context_type=platform`.
+        role:
+          $ref: '#/components/schemas/AudienceRole'
+        scopes:
+          type: array
+          items:
+            type: string
+      oneOf:
+        - properties:
+            context_type:
+              const: org
+          required: [org_id]
+        - properties:
+            context_type:
+              const: platform
+
+    RevokeAudienceGrantCommand:
+      type: object
+      required: [audience, grant_id]
+      properties:
+        audience:
+          type: string
+        grant_id:
+          type: string
+
+    CreateImpersonationGrantCommand:
+      type: object
+      required: [actor_user_id, target_scope, expires_at]
+      properties:
+        actor_user_id:
+          type: string
+        target_scope:
+          $ref: '#/components/schemas/TargetScope'
+        expires_at:
+          type: string
+          format: date-time
+
+    DeactivateUserCommand:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+        reason:
+          type: string
+          maxLength: 400
+
+    CommandAcceptedResponse:
+      type: object
+      required: [command_id, command_type, status, accepted_at]
+      properties:
+        command_id:
+          type: string
+        command_type:
+          type: string
+        status:
+          type: string
+          enum: [RECEIVED, ACCEPTED]
+        accepted_at:
+          type: string
+          format: date-time
+        correlation_id:
+          type: string
+        idempotency_key:
+          type: string
+
+    CommandStatusResponse:
+      type: object
+      required: [command_id, command_type, status, submitted_at]
+      properties:
+        command_id:
+          type: string
+        command_type:
+          type: string
+        status:
+          type: string
+          enum: [RECEIVED, VALIDATING, ACCEPTED, PROCESSING, SUCCEEDED, FAILED, REJECTED]
+        submitted_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        correlation_id:
+          type: string
+        error:
+          $ref: '#/components/schemas/CommandError'
+        produced_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProducedEventRef'
+
+    CommandError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    ProducedEventRef:
+      type: object
+      required: [event_id, event_type, occurred_at]
+      properties:
+        event_id:
+          type: string
+        event_type:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+
+    LoginRequest:
+      type: object
+      required: [email, password, audience, context_type]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        audience:
+          type: string
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        org_id:
+          type: string
+          nullable: true
+          description: Required when `context_type=org`; omitted for `context_type=platform`.
+        env:
+          $ref: '#/components/schemas/Environment'
+      oneOf:
+        - properties:
+            context_type:
+              const: org
+          required: [org_id]
+        - properties:
+            context_type:
+              const: platform
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    LogoutRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, refresh_token]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          const: Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+        refresh_token:
+          type: string
+        scope:
+          type: string
+          description: Space-delimited OAuth scopes.
+
+    TokenExchangeRequest:
+      type: object
+      required: [audience, context_type, env]
+      properties:
+        audience:
+          type: string
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        org_id:
+          type: string
+          nullable: true
+          description: Required when `context_type=org`; omitted for `context_type=platform`.
+        env:
+          $ref: '#/components/schemas/Environment'
+        requested_role:
+          type: string
+        as_user_id:
+          type: string
+        reason:
+          type: string
+          maxLength: 400
+      oneOf:
+        - properties:
+            context_type:
+              const: org
+          required: [org_id]
+        - properties:
+            context_type:
+              const: platform
+
+    AccessTokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          const: Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+
+    MeResponse:
+      type: object
+      required: [user, active_context]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        active_context:
+          $ref: '#/components/schemas/TokenContext'
+        organizations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+
+    AuthorizationCheckRequest:
+      type: object
+      required: [subject, action, resource, context]
+      properties:
+        subject:
+          $ref: '#/components/schemas/AuthorizationSubject'
+        action:
+          type: string
+        resource:
+          $ref: '#/components/schemas/AuthorizationResource'
+        context:
+          $ref: '#/components/schemas/AuthorizationContext'
+
+    AuthorizationCheckResponse:
+      type: object
+      required: [allow, decision_id]
+      properties:
+        allow:
+          type: boolean
+        decision_id:
+          type: string
+        reason:
+          type: string
+        evaluated_at:
+          type: string
+          format: date-time
+
+    AuthorizationBatchCheckRequest:
+      type: object
+      required: [checks]
+      properties:
+        checks:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AuthorizationCheckRequest'
+
+    AuthorizationBatchCheckResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorizationCheckResponse'
+
+    AuthorizationSubject:
+      type: object
+      required: [type, id]
+      properties:
+        type:
+          type: string
+          enum: [USER, CLIENT, SERVICE]
+        id:
+          type: string
+
+    AuthorizationResource:
+      type: object
+      required: [type, id]
+      properties:
+        type:
+          type: string
+        id:
+          type: string
+
+    AuthorizationContext:
+      type: object
+      required: [audience, context_type]
+      properties:
+        audience:
+          type: string
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        org_id:
+          type: string
+          nullable: true
+      oneOf:
+        - properties:
+            context_type:
+              const: org
+          required: [org_id]
+        - properties:
+            context_type:
+              const: platform
+
+    TargetScope:
+      type: object
+      required: [audience, context_type]
+      properties:
+        audience:
+          type: string
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        org_id:
+          type: string
+          nullable: true
+      oneOf:
+        - properties:
+            context_type:
+              const: org
+          required: [org_id]
+        - properties:
+            context_type:
+              const: platform
+
+    User:
+      type: object
+      required: [id, email, status, email_verified, created_at]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, DEACTIVATED]
+        email_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Organization:
+      type: object
+      required: [id, slug, name, status]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        created_by:
+          type: string
+
+    OrgMembership:
+      type: object
+      required: [organization_id, user_id, role, status]
+      properties:
+        organization_id:
+          type: string
+        user_id:
+          type: string
+        role:
+          $ref: '#/components/schemas/OrgRole'
+        status:
+          type: string
+          enum: [ACTIVE, INVITED, SUSPENDED, LEFT]
+
+    AudienceGrant:
+      type: object
+      required: [id, subject_type, subject_id, audience, context_type, role, status]
+      properties:
+        id:
+          type: string
+        subject_type:
+          $ref: '#/components/schemas/SubjectType'
+        subject_id:
+          type: string
+        audience:
+          type: string
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        org_id:
+          type: string
+          nullable: true
+        role:
+          $ref: '#/components/schemas/AudienceRole'
+        scopes:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+
+    AudienceGrantListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AudienceGrant'
+
+    TokenContext:
+      type: object
+      required: [aud, context_type, env, roles]
+      properties:
+        aud:
+          type: string
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        org_id:
+          type: string
+          nullable: true
+        env:
+          $ref: '#/components/schemas/Environment'
+        roles:
+          type: array
+          items:
+            type: string
+        scope:
+          type: string
+
+    EventEnvelope:
+      type: object
+      required: [id, specversion, source, type, time, data]
+      properties:
+        id:
+          type: string
+        specversion:
+          type: string
+          const: '1.0'
+        source:
+          type: string
+          example: platform-demo.identity
+        type:
+          type: string
+          example: identity.user.registered
+        subject:
+          type: string
+          example: user/usr_01J...
+        time:
+          type: string
+          format: date-time
+        datacontenttype:
+          type: string
+          default: application/json
+        schema_version:
+          type: integer
+          minimum: 1
+        correlation_id:
+          type: string
+        causation_id:
+          type: string
+        actor:
+          $ref: '#/components/schemas/EventActor'
+        tenant:
+          $ref: '#/components/schemas/EventTenant'
+        data:
+          type: object
+          additionalProperties: true
+
+    EventActor:
+      type: object
+      required: [subject_type, subject_id]
+      properties:
+        subject_type:
+          type: string
+          enum: [USER, CLIENT, SYSTEM]
+        subject_id:
+          type: string
+
+    EventTenant:
+      type: object
+      required: [context_type]
+      properties:
+        context_type:
+          $ref: '#/components/schemas/ContextType'
+        org_id:
+          type: string
+          nullable: true
+
+    EventListResponse:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventEnvelope'
+        next_offset:
+          type: integer
+          minimum: 0
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              enum:
+                - invalid_request
+                - unauthorized
+                - forbidden
+                - not_found
+                - conflict
+                - rate_limited
+                - internal_error
+            message:
+              type: string
+            request_id:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+
+    SubjectType:
+      type: string
+      enum: [USER, CLIENT]
+
+    ContextType:
+      type: string
+      enum: [platform, org]
+
+    Environment:
+      type: string
+      enum: [prod, sandbox]
+
+    OrgRole:
+      type: string
+      enum: [ORG_OWNER, ORG_ADMIN, ORG_MEMBER]
+
+    AudienceRole:
+      type: string
+      enum: [AUD_ADMIN, AUD_MEMBER, AUD_VIEWER, SYSTEM_ADMIN]

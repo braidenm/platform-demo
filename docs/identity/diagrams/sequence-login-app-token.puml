@@ -1,0 +1,16 @@
+@startuml
+title Login + App-Scoped Token
+
+actor User
+participant "App Frontend/API" as APP
+participant "Identity Service (AuthN)" as ID
+database "Identity Store" as DB
+
+User -> APP: Submit credentials + initial context\n(audience, context_type, org_id?, env)
+APP -> ID: POST /identity/v1/auth/login
+ID -> DB: Validate user + password hash
+DB --> ID: User + memberships + grants
+ID --> APP: access_token(aud, context_type, org_id?, env) + refresh_token
+APP --> User: Session established
+
+@enduml

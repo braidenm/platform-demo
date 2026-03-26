@@ -1,0 +1,94 @@
+@startuml
+title Identity Service Event Modeling
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+left to right direction
+
+package "Actors" {
+  actor User
+  actor "App Service" as App
+  actor "System Admin" as SysAdmin
+}
+
+package "Commands" {
+  rectangle RegisterUser
+  rectangle CreateOrganization
+  rectangle GrantOrgRole
+  rectangle GrantAppAccess
+  rectangle LoginWithPassword
+  rectangle RefreshSession
+  rectangle ExchangeToken
+  rectangle DeactivateUser
+  rectangle GrantImpersonation
+}
+
+package "Domain Events" {
+  rectangle UserRegistered
+  rectangle OrganizationCreated
+  rectangle OrgRoleGranted
+  rectangle AudienceGrantAssigned
+  rectangle UserAuthenticated
+  rectangle RefreshTokenRotated
+  rectangle AccessTokenIssued
+  rectangle UserDeactivated
+  rectangle ImpersonationGranted
+  rectangle AuthorizationEvaluated
+}
+
+package "Projections / Read Models" {
+  rectangle "User Profile Read Model" as UserProfileRM
+  rectangle "Membership Read Model" as MembershipRM
+  rectangle "Audience Grants Read Model" as AudienceGrantRM
+  rectangle "Session and Token Read Model" as SessionRM
+  rectangle "Audit Timeline" as AuditRM
+  rectangle "Policy Decision Cache" as PolicyRM
+}
+
+User --> RegisterUser
+User --> LoginWithPassword
+User --> ExchangeToken
+User --> CreateOrganization
+User --> RefreshSession
+App --> ExchangeToken
+SysAdmin --> GrantOrgRole
+SysAdmin --> GrantAppAccess
+SysAdmin --> DeactivateUser
+SysAdmin --> GrantImpersonation
+
+RegisterUser --> UserRegistered
+UserRegistered --> UserProfileRM
+CreateOrganization --> OrganizationCreated
+OrganizationCreated --> MembershipRM
+GrantOrgRole --> OrgRoleGranted
+OrgRoleGranted --> MembershipRM
+GrantAppAccess --> AudienceGrantAssigned
+AudienceGrantAssigned --> AudienceGrantRM
+LoginWithPassword --> UserAuthenticated
+UserAuthenticated --> SessionRM
+RefreshSession --> RefreshTokenRotated
+RefreshTokenRotated --> SessionRM
+ExchangeToken --> AccessTokenIssued
+AccessTokenIssued --> SessionRM
+DeactivateUser --> UserDeactivated
+UserDeactivated --> UserProfileRM
+GrantImpersonation --> ImpersonationGranted
+ImpersonationGranted --> AuditRM
+AuthorizationEvaluated --> PolicyRM
+
+UserRegistered --> AuditRM
+OrganizationCreated --> AuditRM
+OrgRoleGranted --> AuditRM
+AudienceGrantAssigned --> AuditRM
+UserAuthenticated --> AuditRM
+RefreshTokenRotated --> AuditRM
+AccessTokenIssued --> AuditRM
+UserDeactivated --> AuditRM
+
+legend right
+AuthN boundary: RegisterUser, LoginWithPassword, RefreshSession, ExchangeToken.
+AuthZ/FGA boundary: GrantOrgRole, GrantAppAccess, GrantImpersonation, AuthorizationEvaluated.
+Monolith now: same runtime. Later: AuthZ boundary can be extracted behind policy APIs.
+end legend
+
+@enduml

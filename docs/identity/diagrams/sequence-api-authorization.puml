@@ -1,0 +1,22 @@
+@startuml
+title API Authorization Check (Scope + Domain Rule)
+
+actor User
+participant "Resource API" as APP
+participant "Authorization Policy (AuthZ/FGA)" as POL
+participant "Domain Service" as DOM
+
+User -> APP: GET /api/v1/organizations/{orgId}/resource/{id}\nBearer token
+APP -> APP: Validate JWT (iss, aud, exp, signature)
+APP -> APP: PreAuthorize(scope/role/org checks)
+APP -> POL: AuthorizationPort.check(subject, action, resource, aud, org_id)
+POL --> APP: allow/deny (+ decision_id)
+alt allow
+  APP -> DOM: Domain-level resource rule check
+  DOM --> APP: allow
+  APP --> User: 200 OK + data
+else deny
+  APP --> User: 403 Forbidden
+end
+
+@enduml
