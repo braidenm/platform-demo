@@ -369,20 +369,20 @@ Auth (synchronous):
 - `POST /identity/v1/auth/logout`
 - `POST /identity/v1/token/exchange`
 
-Command API (event-first, asynchronous):
-- `POST /identity/v1/commands/register-user`
-- `POST /identity/v1/commands/create-organization`
-- `POST /identity/v1/commands/invite-organization-member`
-- `POST /identity/v1/commands/assign-organization-role`
-- `POST /identity/v1/commands/create-audience-grant`
-- `POST /identity/v1/commands/revoke-audience-grant`
-- `POST /identity/v1/commands/create-impersonation-grant`
-- `POST /identity/v1/commands/deactivate-user`
+Async write API (event-first, asynchronous):
+- `POST /v1/register-user`
+- `POST /v1/create-organization`
+- `POST /v1/invite-organization-member`
+- `POST /v1/assign-organization-role`
+- `POST /v1/create-audience-grant`
+- `POST /v1/revoke-audience-grant`
+- `POST /v1/create-impersonation-grant`
+- `POST /v1/deactivate-user`
 
 Query API (read models and policy decisions):
 - `GET /identity/v1/me`
-- `GET /identity/v1/commands/{commandId}`
-- `GET /identity/v1/users/{userId}`
+- `GET /v1/commands/{commandId}`
+- `GET /v1/users/{userId}`
 - `GET /identity/v1/organizations/{orgId}/members/{userId}`
 - `GET /identity/v1/audiences/{audience}/grants`
 - `POST /identity/v1/authorize/check`
@@ -394,7 +394,7 @@ Event API:
 - `GET /identity/v1/events/stream`
 
 Notes:
-- Most writes should go through command endpoints and emit events.
+- Most writes should go through asynchronous write endpoints and emit events.
 - Keep this contract stable so the module can be extracted with minimal integration changes.
 
 ---

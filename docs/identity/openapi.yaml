@@ -7,7 +7,7 @@ info:
     Event-first contract for identity and auth in a modular monolith with a microservice extraction path.
 
     Design intent:
-    - Most state-changing operations are command endpoints that return `202 Accepted`.
+    - Most state-changing operations are asynchronous write endpoints that return `202 Accepted`.
     - Command processing emits domain events and updates read models asynchronously.
     - Auth/session/token endpoints remain synchronous for practical UX.
 servers:
@@ -195,12 +195,12 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
-  /identity/v1/commands/register-user:
+  /v1/register-user:
     post:
-      tags: [Commands]
-      summary: Submit register-user command
-      description: Public command endpoint for sign-up; command is processed asynchronously.
-      operationId: commandRegisterUser
+      tags: [Auth]
+      summary: Register user asynchronously
+      description: Public sign-up endpoint; request is processed asynchronously.
+      operationId: registerUser
       security: []
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -210,7 +210,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterUserCommand'
+              $ref: '#/components/schemas/RegisterUserRequest'
       responses:
         '202':
           $ref: '#/components/responses/AcceptedCommand'
@@ -389,7 +389,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
-  /identity/v1/commands/{commandId}:
+  /v1/commands/{commandId}:
     get:
       tags: [Query]
       summary: Get command processing status
@@ -410,7 +410,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /identity/v1/users/{userId}:
+  /v1/users/{userId}:
     get:
       tags: [Query]
       summary: Get user read model
@@ -585,7 +585,7 @@ components:
       name: Idempotency-Key
       in: header
       required: false
-      description: Required for safe retries on command endpoints in production.
+      description: Required for safe retries on asynchronous write endpoints in production.
       schema:
         type: string
         minLength: 8
@@ -701,7 +701,7 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
 
   schemas:
-    RegisterUserCommand:
+    RegisterUserRequest:
       type: object
       required: [email, password]
       properties:

@@ -19,22 +19,27 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/identity/v1/commands")
-class RegisterUserCommandController(
+@RequestMapping("/v1")
+class UserRegistrationController(
     private val registerUserCommandService: RegisterUserCommandService,
-    private val commandStatusService: CommandStatusService
 ) {
 
     @PostMapping("/register-user")
     fun registerUser(
-        @Valid @RequestBody request: RegisterUserCommandRequest,
+        @Valid @RequestBody request: RegisterUserRequest,
         @RequestHeader(name = "Idempotency-Key", required = false) idempotencyKey: String?,
         @RequestHeader(name = "X-Correlation-Id", required = false) correlationId: String?
     ): ResponseEntity<CommandAcceptedResponse> {
         val response = registerUserCommandService.submit(request, idempotencyKey, correlationId)
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response)
     }
+}
 
+@RestController
+@RequestMapping("/v1/commands")
+class CommandStatusController(
+    private val commandStatusService: CommandStatusService
+) {
     @GetMapping("/{commandId}")
     fun getCommandStatus(@PathVariable commandId: String): CommandStatusResponse {
         return commandStatusService.getOrThrow(commandId).toApiResponse()
@@ -42,7 +47,7 @@ class RegisterUserCommandController(
 }
 
 @RestController
-@RequestMapping("/identity/v1/users")
+@RequestMapping("/v1/users")
 class UserReadModelController(
     private val userReadModelRepository: UserReadModelRepository
 ) {

@@ -18,7 +18,7 @@ import java.time.Duration
 import java.time.Instant
 
 @AutoConfigureMockMvc
-class RegisterUserCommandApiIntegrationTest : AbstractIntegrationTest() {
+class RegisterUserApiIntegrationTest : AbstractIntegrationTest() {
 
     @Autowired
     lateinit var mockMvc: MockMvc
@@ -30,7 +30,7 @@ class RegisterUserCommandApiIntegrationTest : AbstractIntegrationTest() {
     lateinit var userReadModelRepository: UserReadModelRepository
 
     @Test
-    fun `register-user command should accept and project user read model`() {
+    fun `register-user should accept and project user read model`() {
         val email = "register-success-${System.currentTimeMillis()}@example.com"
         val result = submitRegisterUser(
             email = email,
@@ -68,7 +68,7 @@ class RegisterUserCommandApiIntegrationTest : AbstractIntegrationTest() {
         submitRegisterUser(email = email, idempotencyKey = "idem-${System.currentTimeMillis()}-first")
 
         mockMvc.perform(
-            post("/identity/v1/commands/register-user")
+            post("/v1/register-user")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Idempotency-Key", "idem-${System.currentTimeMillis()}-second")
                 .content(registerPayload(email))
@@ -80,7 +80,7 @@ class RegisterUserCommandApiIntegrationTest : AbstractIntegrationTest() {
 
     private fun submitRegisterUser(email: String, idempotencyKey: String): JsonNode {
         val response = mockMvc.perform(
-            post("/identity/v1/commands/register-user")
+            post("/v1/register-user")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Idempotency-Key", idempotencyKey)
                 .header("X-Correlation-Id", "corr-${System.currentTimeMillis()}")
@@ -101,7 +101,7 @@ class RegisterUserCommandApiIntegrationTest : AbstractIntegrationTest() {
         val deadline = Instant.now().plus(timeout)
 
         while (Instant.now().isBefore(deadline)) {
-            val response = mockMvc.perform(get("/identity/v1/commands/$commandId"))
+            val response = mockMvc.perform(get("/v1/commands/$commandId"))
                 .andExpect(status().isOk)
                 .andReturn()
                 .response

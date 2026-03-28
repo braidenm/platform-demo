@@ -8,7 +8,7 @@ This folder contains the identity architecture, API-first contract, and diagrams
 - AuthN and AuthZ/FGA are separate logical boundaries inside the same module/runtime for now.
 - Domain modules call authorization through an in-process contract (`AuthorizationPort`) in the monolith.
 - The same contract can later be backed by an HTTP adapter when AuthZ is extracted.
-- API contract is event-first: most writes are async command endpoints that emit events.
+- API contract is event-first: most writes are asynchronous endpoints that emit events.
 
 ## Documents
 

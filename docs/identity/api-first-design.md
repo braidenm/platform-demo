@@ -8,24 +8,24 @@ Machine-readable contract:
 
 ## 1. API Style
 
-- Base path: `/identity/v1`
+- Public base path for the registration slice: `/v1`
 - JSON for request/response payloads
 - UTC ISO-8601 timestamps
-- Most write operations are command endpoints:
-  - `POST /identity/v1/commands/*` -> `202 Accepted`
+- Most write operations are asynchronous endpoints:
+  - `POST /v1/register-user` -> `202 Accepted`
   - returns `command_id`
   - processing is asynchronous and emits events
 - Reads are query endpoints over read models
 - Auth/session/token endpoints stay synchronous for UX
 
-## 2. Command Lifecycle
+## 2. Asynchronous Request Lifecycle
 
-1. Client posts a command with optional `Idempotency-Key` and `X-Correlation-Id`.
+1. Client posts a request with optional `Idempotency-Key` and `X-Correlation-Id`.
 2. API validates shape and authorization, then accepts (`202`).
-3. Command processor handles business logic.
+3. Internal command processor handles business logic.
 4. Domain events are emitted (CloudEvents-style envelope).
 5. Read models are updated.
-6. Client polls command status or consumes events.
+6. Client polls `GET /v1/commands/{commandId}` or consumes events.
 
 ## 3. Endpoint Groups
 
@@ -36,9 +36,9 @@ Machine-readable contract:
 - `POST /identity/v1/auth/logout`
 - `POST /identity/v1/token/exchange`
 
-### 3.2 Commands (Asynchronous)
+### 3.2 Asynchronous Writes
 
-- `POST /identity/v1/commands/register-user`
+- `POST /v1/register-user`
 - `POST /identity/v1/commands/create-organization`
 - `POST /identity/v1/commands/invite-organization-member`
 - `POST /identity/v1/commands/assign-organization-role`
@@ -50,8 +50,8 @@ Machine-readable contract:
 ### 3.3 Query (Read Models)
 
 - `GET /identity/v1/me`
-- `GET /identity/v1/commands/{commandId}`
-- `GET /identity/v1/users/{userId}`
+- `GET /v1/commands/{commandId}`
+- `GET /v1/users/{userId}`
 - `GET /identity/v1/organizations/{orgId}/members/{userId}`
 - `GET /identity/v1/audiences/{audience}/grants`
 
@@ -92,9 +92,9 @@ Example:
 }
 ```
 
-## 6. Command Examples
+## 6. Request Examples
 
-Register user command:
+Register user request:
 ```json
 {
   "email": "user@example.com",
@@ -103,7 +103,7 @@ Register user command:
 }
 ```
 
-Create audience grant command:
+Create audience grant request:
 ```json
 {
   "subject_type": "USER",

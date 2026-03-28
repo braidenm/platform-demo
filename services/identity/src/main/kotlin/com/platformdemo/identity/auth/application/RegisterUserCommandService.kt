@@ -3,7 +3,7 @@ package com.platformdemo.identity.auth.application
 import com.platformdemo.identity.auth.api.BadRequestException
 import com.platformdemo.identity.auth.api.CommandAcceptedResponse
 import com.platformdemo.identity.auth.api.ConflictException
-import com.platformdemo.identity.auth.api.RegisterUserCommandRequest
+import com.platformdemo.identity.auth.api.RegisterUserRequest
 import com.platformdemo.identity.auth.domain.RegisterUserCommand
 import com.platformdemo.identity.auth.domain.UserStatus
 import com.platformdemo.identity.auth.infrastructure.CommandProcessingStatus
@@ -34,7 +34,7 @@ class RegisterUserCommandService(
 
     @Transactional
     fun submit(
-        request: RegisterUserCommandRequest,
+        request: RegisterUserRequest,
         idempotencyKeyHeader: String?,
         correlationIdHeader: String?
     ): CommandAcceptedResponse {
@@ -121,7 +121,7 @@ class RegisterUserCommandService(
             commandStatusService.markFailed(
                 commandId = commandId,
                 code = "internal_error",
-                message = "Unable to process register-user command"
+                message = "Unable to process register-user request"
             )
             throw ex
         }

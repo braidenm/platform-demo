@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size
 import java.time.Instant
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
-data class RegisterUserCommandRequest(
+data class RegisterUserRequest(
     @field:NotBlank
     @field:Email
     val email: String,
