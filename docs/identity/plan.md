@@ -295,11 +295,15 @@ Exit criteria:
 Goal: ship working auth quickly.
 
 - Email/password register + login + refresh + logout.
-- Auto-create personal organization at sign-up.
-- Allow user to join additional orgs via invite later.
-- Issue audience-scoped access token for one product audience at a time.
-- Basic role model:
-  - `org_owner`, `org_admin`, `org_member`.
+- Register is synchronous and returns the created user identifier.
+- Refresh token policy for the initial auth slice:
+  - access token TTL: 15 minutes
+  - refresh token TTL: 30 days
+  - refresh rotation on every successful refresh
+  - logout revokes the active refresh token/session
+  - refresh token reuse after rotation is rejected
+- Auto-create personal organization at sign-up later if/when organizations become part of the active slice.
+- Issue audience-scoped access token for one product audience at a time when audience support is implemented.
 
 Exit criteria:
 - User can sign up, log in, get token for `aud=platform-api`, and call APIs in that audience.
@@ -363,39 +367,31 @@ Exit criteria:
 
 ## 4. API Contract (Version 1)
 
-Auth (synchronous):
-- `POST /identity/v1/auth/login`
-- `POST /identity/v1/auth/refresh`
-- `POST /identity/v1/auth/logout`
-- `POST /identity/v1/token/exchange`
+Current/near-term API contract:
 
-Async write API (event-first, asynchronous):
+Implemented now:
 - `POST /v1/register-user`
-- `POST /v1/create-organization`
-- `POST /v1/invite-organization-member`
-- `POST /v1/assign-organization-role`
-- `POST /v1/create-audience-grant`
-- `POST /v1/revoke-audience-grant`
-- `POST /v1/create-impersonation-grant`
-- `POST /v1/deactivate-user`
-
-Query API (read models and policy decisions):
-- `GET /identity/v1/me`
-- `GET /v1/commands/{commandId}`
 - `GET /v1/users/{userId}`
-- `GET /identity/v1/organizations/{orgId}/members/{userId}`
-- `GET /identity/v1/audiences/{audience}/grants`
-- `POST /identity/v1/authorize/check`
-- `POST /identity/v1/authorize/batch-check`
 
-Event API:
-- `GET /identity/v1/events`
-- `GET /identity/v1/events/{eventId}`
-- `GET /identity/v1/events/stream`
+Planned next auth endpoints:
+- `POST /v1/login`
+- `POST /v1/refresh`
+- `POST /v1/logout`
+- `GET /v1/me`
 
-Notes:
-- Most writes should go through asynchronous write endpoints and emit events.
-- Keep this contract stable so the module can be extracted with minimal integration changes.
+Planned token/session behavior:
+- access token TTL: 15 minutes
+- refresh token TTL: 30 days
+- refresh responses return both `expires_in` and `refresh_expires_in`
+- refresh token rotates on every successful refresh
+- logout revokes the active refresh token/session
+
+Deferred later:
+- machine-to-machine token flows
+- delegated auth flows
+- organizations and membership APIs
+- authorization decision endpoints
+- external event APIs when they add product value
 
 ---
 
@@ -438,7 +434,7 @@ Defaults:
 - Flyway OSS
 - Redis (optional for revocation/cache)
 - OpenFGA (optional backend in later phase)
-- Testcontainers
+- Docker Compose-backed local/service test infrastructure
 
 ---
 

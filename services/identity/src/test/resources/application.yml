@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/platformdemo?currentSchema=identity,public
+    username: platformdemo
+    password: platformdemo_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: identity
+        jdbc:
+          lob:
+            non_contextual_creation: true
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: platformdemo_test
+      username: platformdemo
+      password: platformdemo_password
+      authentication-database: admin
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 0
+
+axon:
+  serializer:
+    events: jackson
+    messages: jackson
+    general: jackson
+  eventhandling:
+    processors:
+      identity:
+        mode: tracking

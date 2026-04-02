@@ -1,6 +1,6 @@
 # Identity API-First Design
 
-This document defines the API contract before implementation with an event-first style.
+This document defines the API contract before implementation for the identity slice.
 Goal: keep identity reusable across multiple apps while preserving a clean extraction path.
 
 Machine-readable contract:
@@ -8,91 +8,69 @@ Machine-readable contract:
 
 ## 1. API Style
 
-- Public base path for the registration slice: `/v1`
+- Public base path for the registration/auth slice: `/v1`
 - JSON for request/response payloads
 - UTC ISO-8601 timestamps
-- Most write operations are asynchronous endpoints:
-  - `POST /v1/register-user` -> `202 Accepted`
-  - returns `command_id`
-  - processing is asynchronous and emits events
-- Reads are query endpoints over read models
-- Auth/session/token endpoints stay synchronous for UX
+- `register-user` is currently a synchronous create endpoint
+- registration supports `Idempotency-Key`
+- auth/session/token endpoints are synchronous for UX
+- internal event emission is still allowed even when the external API is synchronous
 
-## 2. Asynchronous Request Lifecycle
+## 2. Registration Lifecycle
 
-1. Client posts a request with optional `Idempotency-Key` and `X-Correlation-Id`.
-2. API validates shape and authorization, then accepts (`202`).
-3. Internal command processor handles business logic.
-4. Domain events are emitted (CloudEvents-style envelope).
-5. Read models are updated.
-6. Client polls `GET /v1/commands/{commandId}` or consumes events.
+1. Client posts a request with optional `Idempotency-Key`.
+2. API validates the request and creates the user synchronously.
+3. API returns `201 Created` with the created user identifier.
+4. A repeated request with the same idempotency key returns the same created user response.
+5. The user can be fetched from `GET /v1/users/{userId}`.
+6. Internal events may still be emitted for downstream processing.
 
-## 3. Endpoint Groups
+## 3. Auth Session Policy (planned next slice)
 
-### 3.1 Auth (Synchronous)
+### Access token
+- TTL: **15 minutes**
+- Returned as `expires_in=900`
 
-- `POST /identity/v1/auth/login`
-- `POST /identity/v1/auth/refresh`
-- `POST /identity/v1/auth/logout`
-- `POST /identity/v1/token/exchange`
+### Refresh token
+- TTL: **30 days**
+- Returned as `refresh_expires_in=2592000`
+- Rotated on every successful refresh
+- Previous refresh token becomes invalid after rotation
+- Logout revokes the active refresh token/session
+- Expired, revoked, or reused refresh tokens must be rejected
 
-### 3.2 Asynchronous Writes
+### Client communication
+Clients should be told explicitly through API responses and docs that:
+- access tokens are short-lived bearer credentials
+- refresh tokens are long-lived session credentials
+- refresh tokens must be replaced when `/v1/refresh` returns a new one
+- clients must treat refresh token reuse failures as a signal to re-authenticate
 
+## 4. Endpoint Groups
+
+### 4.1 Current Implemented Endpoints
 - `POST /v1/register-user`
-- `POST /identity/v1/commands/create-organization`
-- `POST /identity/v1/commands/invite-organization-member`
-- `POST /identity/v1/commands/assign-organization-role`
-- `POST /identity/v1/commands/create-audience-grant`
-- `POST /identity/v1/commands/revoke-audience-grant`
-- `POST /identity/v1/commands/create-impersonation-grant`
-- `POST /identity/v1/commands/deactivate-user`
-
-### 3.3 Query (Read Models)
-
-- `GET /identity/v1/me`
-- `GET /v1/commands/{commandId}`
 - `GET /v1/users/{userId}`
-- `GET /identity/v1/organizations/{orgId}/members/{userId}`
-- `GET /identity/v1/audiences/{audience}/grants`
 
-### 3.4 Events
+### 4.2 Planned Next Auth Endpoints
+- `POST /v1/login`
+- `POST /v1/refresh`
+- `POST /v1/logout`
+- `GET /v1/me`
 
-- `GET /identity/v1/events`
-- `GET /identity/v1/events/{eventId}`
-- `GET /identity/v1/events/stream` (SSE)
+### 4.3 Deferred Future Endpoints
+- machine-to-machine token flows
+- delegated auth flows
+- organizations and membership APIs
+- authorization decision endpoints
+- event stream endpoints when they add product value
 
-## 4. Context Rules
+## 5. Eventing Direction
 
-- `context_type=org` requires `org_id`
-- `context_type=platform` omits `org_id`
+The external API no longer exposes a command-status API for registration.
+That does not prevent the service from emitting internal domain events or later publishing Kafka events when the platform is ready for that.
 
-JWT context claims expected by resource services:
-- `sub`, `aud`, `context_type`, `org_id` (org context only), `scope`, `roles`, `exp`, `jti`
-
-## 5. Event Envelope
-
-Events use a CloudEvents-like envelope:
-- `id`, `specversion`, `source`, `type`, `time`, `data`
-- optional tracing/context fields:
-  - `correlation_id`, `causation_id`, `actor`, `tenant`
-
-Example:
-```json
-{
-  "id": "evt_01J9Y8Z2A",
-  "specversion": "1.0",
-  "source": "platform-demo.identity",
-  "type": "identity.user.registered",
-  "time": "2026-03-26T21:00:00Z",
-  "correlation_id": "corr_123",
-  "data": {
-    "user_id": "usr_01J...",
-    "email": "user@example.com"
-  }
-}
-```
-
-## 6. Request Examples
+## 6. Request / Response Examples
 
 Register user request:
 ```json
@@ -103,42 +81,41 @@ Register user request:
 }
 ```
 
-Create audience grant request:
+Register user response:
 ```json
 {
-  "subject_type": "USER",
-  "subject_id": "usr_01J...",
-  "audience": "platform-api",
-  "context_type": "org",
-  "org_id": "org_01J...",
-  "role": "AUD_ADMIN",
-  "scopes": ["classes:read", "classes:write"]
+  "user_id": "usr_01J9Y8TQK",
+  "email": "user@example.com",
+  "status": "ACTIVE",
+  "created_at": "2026-03-26T21:00:00Z"
 }
 ```
 
-Accepted response:
+Planned login/refresh response:
 ```json
 {
-  "command_id": "cmd_01J9Y8TQK",
-  "command_type": "create_audience_grant",
-  "status": "RECEIVED",
-  "accepted_at": "2026-03-26T21:00:00Z",
-  "correlation_id": "corr_123"
+  "access_token": "...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "...",
+  "refresh_expires_in": 2592000
 }
 ```
 
 ## 7. Contract-First Delivery Flow
 
 1. Finalize OpenAPI and examples.
-2. Generate server/client stubs from contract.
-3. Implement handlers and command processors.
-4. Add contract tests for command status and event shapes.
-5. Add integration tests for auth + context isolation.
+2. Implement handlers and persistence boundaries.
+3. Keep shared concerns in the `shared` Gradle module when they are truly cross-cutting.
+4. Add contract/integration tests for the implemented APIs.
+5. Expand into login/refresh/logout/me next.
 
 ## 8. Out-of-Scope
 
-- Domain entities (classes, leads, invoices, appointments).
-- Domain workflow transitions.
-- Domain-specific reporting.
+- Organizations and memberships
+- Audience grants
+- Impersonation
+- Domain entities (classes, leads, invoices, appointments)
+- Domain workflow transitions
 
-These remain in app services and consume identity context plus policy decisions.
+These remain deferred until the core identity/auth slice is stable.

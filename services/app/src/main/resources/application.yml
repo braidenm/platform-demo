@@ -27,6 +27,7 @@ spring:
       password: ${MONGO_PLATFORMDEMO_PASSWORD}
       authentication-database: ${MONGO_PLATFORMDEMO_DB}
   jackson:
+    property-naming-strategy: SNAKE_CASE
     serialization:
       write-dates-as-timestamps: false
 
