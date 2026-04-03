@@ -13,9 +13,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
     
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:mongodb")
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux")
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

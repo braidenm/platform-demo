@@ -12,14 +12,14 @@ This project can stay Kotlin/Spring and still be strongly contract-first.
 
 ## Event-Focused Add-On
 
-OpenAPI is good for command/query HTTP APIs, but event contracts are cleaner with AsyncAPI.
+OpenAPI is good for the synchronous identity/auth HTTP APIs. Event contracts are cleaner with AsyncAPI once event publication becomes a first-class external concern.
 
 - Keep OpenAPI for:
-  - auth endpoints
-  - command submission
-  - command status and read-model queries
-- Add AsyncAPI for:
-  - event stream topics/channels
+  - registration
+  - login / refresh / logout / me
+  - read-model queries
+- Add AsyncAPI later for:
+  - Kafka topics/channels
   - event payload schemas and compatibility policy
 
 ## Language/Framework Choices
@@ -27,8 +27,8 @@ OpenAPI is good for command/query HTTP APIs, but event contracts are cleaner wit
 ### Kotlin / Spring Boot
 
 - `springdoc-openapi`: generate and validate OpenAPI docs from code.
-- `openapi-generator-maven/gradle-plugin`: generate interfaces/DTOs.
-- `spring-cloud-stream` or Kafka client for event publication.
+- `openapi-generator-maven/gradle-plugin`: generate interfaces/models.
+- `spring-cloud-stream` or Kafka client for event publication when ready.
 
 ### TypeScript / Node
 
@@ -51,5 +51,4 @@ OpenAPI is good for command/query HTTP APIs, but event contracts are cleaner wit
 1. Lint OpenAPI (`spectral lint`).
 2. Validate schema syntax and references.
 3. Run mock-server contract tests.
-4. Enforce event schema compatibility rules.
-5. Fail PR if breaking API/event changes are not versioned.
+4. Fail PR if breaking API changes are not versioned.

@@ -4,6 +4,8 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":shared"))
+
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
@@ -20,5 +22,9 @@ dependencies {
     implementation("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.awaitility:awaitility-kotlin:4.2.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
