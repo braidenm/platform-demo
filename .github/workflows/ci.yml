@@ -24,14 +24,14 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v3
 
-      - name: Start compose-backed infrastructure
+      - name: Start test infrastructure only
         run: docker compose up -d postgres mongodb
 
-      - name: Wait for infrastructure health
+      - name: Wait for test infrastructure health
         run: |
           docker compose ps
           until [ "$(docker inspect -f '{{.State.Health.Status}}' platform-demo-postgres 2>/dev/null)" = "healthy" ]; do sleep 2; done
           until [ "$(docker inspect -f '{{.State.Health.Status}}' platform-demo-mongodb 2>/dev/null)" = "healthy" ]; do sleep 2; done
 
-      - name: Run identity build and tests
+      - name: Run identity build and tests against compose-backed test infrastructure
         run: ./gradlew :services:identity:build --warning-mode all
