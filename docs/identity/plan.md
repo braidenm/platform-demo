@@ -8,17 +8,18 @@ It is intentionally practical: what is done, what is next, and what is deferred.
 ### Done
 - [x] `POST /v1/register-user`
 - [x] `GET /v1/users/{userId}`
+- [x] `POST /v1/login`
 - [x] public register response no longer exposes command internals
 - [x] compose-backed service-level test setup for identity
 - [x] identity module refactor toward clearer package structure
 - [x] OpenAPI/docs updated for current registration slice
 
 ### In Progress / needs hardening
-- [ ] stabilize the register-user CQRS/Axon implementation so tests are consistently green
+- [x] stabilize the register-user CQRS/Axon implementation so tests are consistently green
 - [ ] finish tightening service/entity/repository separation after refactor
 - [ ] verify idempotency across write flow, projections, and outbound event publishing
 - [ ] add Kafka domain-event publication from identity domain events
-- [ ] ensure the first slice stays green before moving on
+- [x] ensure the first slice stays green before moving on
 
 ## Target Architecture Direction
 
@@ -50,7 +51,7 @@ It is intentionally practical: what is done, what is next, and what is deferred.
 ## Next APIs (Phase 1: local auth)
 
 ### 1. Login
-- [ ] `POST /v1/login`
+- [x] `POST /v1/login`
 - returns access token + refresh token
 - likely synchronous
 - should verify local credentials through a clear internal auth interface/port

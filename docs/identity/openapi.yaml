@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Platform Demo Identity API
-  version: 1.4.0
+  version: 1.5.0
   summary: Current identity API plus planned auth and federation contract.
   description: |
     Contract-first definition for the identity module.
@@ -9,9 +9,10 @@ info:
     Implemented now:
     - Register user
     - Get user by id
+    - Login with local credentials
 
     Planned next:
-    - login / refresh / logout / me
+    - refresh / logout / me
     - OIDC auth endpoints
     - provider connection management endpoints
 servers:
@@ -59,7 +60,9 @@ paths:
     post:
       tags: [Auth]
       summary: Authenticate with local credentials
-      description: Planned local auth endpoint.
+      description: |
+        Validates local email/password credentials and creates a refresh-backed session.
+        Returns a short-lived access token and a long-lived refresh token.
       operationId: login
       security: []
       requestBody:

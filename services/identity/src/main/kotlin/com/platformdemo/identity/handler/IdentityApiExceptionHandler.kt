@@ -24,6 +24,9 @@ sealed class IdentityApiException(
 class BadRequestException(message: String, details: Map<String, Any?> = emptyMap()) :
     IdentityApiException(HttpStatus.BAD_REQUEST, "invalid_request", message, details)
 
+class UnauthorizedException(message: String, details: Map<String, Any?> = emptyMap()) :
+    IdentityApiException(HttpStatus.UNAUTHORIZED, "unauthorized", message, details)
+
 class ConflictException(message: String, details: Map<String, Any?> = emptyMap()) :
     IdentityApiException(HttpStatus.CONFLICT, "conflict", message, details)
 

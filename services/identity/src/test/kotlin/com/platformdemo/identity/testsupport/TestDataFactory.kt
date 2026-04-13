@@ -1,5 +1,6 @@
 package com.platformdemo.identity.testsupport
 
+import com.platformdemo.identity.auth.endpoint.request.LoginRequest
 import com.platformdemo.identity.endpoint.request.RegisterUserRequest
 import java.util.UUID
 
@@ -14,6 +15,16 @@ object TestDataFactory {
             email = email,
             password = password,
             displayName = displayName
+        )
+    }
+
+    fun loginRequest(
+        email: String,
+        password: String = "S3curePassw0rd!"
+    ): LoginRequest {
+        return LoginRequest(
+            email = email,
+            password = password
         )
     }
 
