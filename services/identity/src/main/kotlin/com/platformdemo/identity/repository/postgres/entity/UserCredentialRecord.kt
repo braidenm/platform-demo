@@ -1,11 +1,10 @@
-package com.platformdemo.identity.repository
+package com.platformdemo.identity.repository.postgres.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import org.springframework.data.jpa.repository.JpaRepository
 import java.time.Instant
 
 @Entity
@@ -15,7 +14,7 @@ import java.time.Instant
         UniqueConstraint(name = "uk_identity_user_credentials_email", columnNames = ["email"])
     ]
 )
-class StoredUserCredential(
+class UserCredentialRecord(
     @Id
     @Column(name = "user_id", nullable = false, updatable = false, length = 64)
     val userId: String,
@@ -30,8 +29,3 @@ class StoredUserCredential(
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant
 )
-
-interface UserCredentialRepository : JpaRepository<StoredUserCredential, String> {
-    fun existsByEmail(email: String): Boolean
-    fun findByEmail(email: String): StoredUserCredential?
-}

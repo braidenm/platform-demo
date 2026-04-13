@@ -8,7 +8,10 @@ This folder contains the identity architecture, API-first contract, and diagrams
 - AuthN and AuthZ/FGA are separate logical boundaries inside the same module/runtime for now.
 - Domain modules call authorization through an in-process contract (`AuthorizationPort`) in the monolith.
 - The same contract can later be backed by an HTTP adapter when AuthZ is extracted.
-- API contract is event-first: most writes are asynchronous endpoints that emit events.
+- Registration remains Axon/CQRS/event-driven.
+- Auth should use short-lived stateless access tokens plus stateful refresh/session control.
+- Local auth should be implemented first behind an internal boundary that can later support Auth0 / generic OIDC providers.
+- Identity domain events should be projectable internally and publishable externally to Kafka through idempotent event handlers.
 
 ## Documents
 

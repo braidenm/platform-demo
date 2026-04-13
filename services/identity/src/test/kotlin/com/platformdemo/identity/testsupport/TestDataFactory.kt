@@ -1,6 +1,7 @@
 package com.platformdemo.identity.testsupport
 
-import com.platformdemo.identity.model.RegisterUserRequest
+import com.platformdemo.identity.endpoint.request.RegisterUserRequest
+import java.util.UUID
 
 object TestDataFactory {
 
@@ -17,6 +18,7 @@ object TestDataFactory {
     }
 
     fun uniqueEmail(prefix: String): String {
-        return "$prefix-${System.currentTimeMillis()}@example.com"
+        val token = UUID.randomUUID().toString().replace("-", "")
+        return "$prefix-$token@example.com"
     }
 }

@@ -8,12 +8,12 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @SpringBootApplication(scanBasePackages = ["com.platformdemo.identity", "com.platformdemo.shared"])
 @EntityScan(
     basePackages = [
-        "com.platformdemo.identity.repository",
+        "com.platformdemo.identity.repository.postgres.entity",
         "com.platformdemo.shared.idempotency",
         "org.axonframework.eventsourcing.eventstore.jpa",
         "org.axonframework.eventhandling.tokenstore.jpa"
     ]
 )
 @EnableJpaRepositories(basePackages = ["com.platformdemo.identity.repository", "com.platformdemo.shared.idempotency"])
-@EnableMongoRepositories(basePackages = ["com.platformdemo.identity.view"])
+@EnableMongoRepositories(basePackages = ["com.platformdemo.identity.repository"])
 class IdentityTestApplication

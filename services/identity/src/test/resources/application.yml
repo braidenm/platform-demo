@@ -40,4 +40,4 @@ axon:
   eventhandling:
     processors:
       identity:
-        mode: tracking
+        mode: subscribing
