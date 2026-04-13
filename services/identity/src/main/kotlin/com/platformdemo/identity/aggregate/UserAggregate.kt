@@ -24,8 +24,10 @@ class UserAggregate() {
                 userId = command.userId,
                 email = command.email,
                 displayName = command.displayName,
+                passwordHash = command.passwordHash,
                 registeredAt = command.registeredAt,
-                status = UserStatus.ACTIVE
+                status = UserStatus.ACTIVE,
+                idempotencyKey = command.idempotencyKey
             )
         )
     }

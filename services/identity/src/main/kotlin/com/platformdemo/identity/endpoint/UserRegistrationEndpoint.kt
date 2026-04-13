@@ -1,12 +1,12 @@
 package com.platformdemo.identity.endpoint
 
 import com.platformdemo.identity.handler.NotFoundException
-import com.platformdemo.identity.model.RegisterUserRequest
-import com.platformdemo.identity.model.UserRegistrationResponse
-import com.platformdemo.identity.model.UserResponse
+import com.platformdemo.identity.repository.mongo.entity.UserProjection
+import com.platformdemo.identity.endpoint.request.RegisterUserRequest
+import com.platformdemo.identity.endpoint.view.UserRegistrationResponse
+import com.platformdemo.identity.endpoint.view.UserResponse
+import com.platformdemo.identity.repository.mongo.UserProjectionRepository
 import com.platformdemo.identity.service.RegisterUserService
-import com.platformdemo.identity.view.UserProjection
-import com.platformdemo.identity.view.UserProjectionRepository
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping

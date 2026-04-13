@@ -8,5 +8,7 @@ data class RegisterUserCommand(
     val userId: String,
     val email: String,
     val displayName: String?,
-    val registeredAt: Instant
+    val passwordHash: String,
+    val registeredAt: Instant,
+    val idempotencyKey: String?
 )

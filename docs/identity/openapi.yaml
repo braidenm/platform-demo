@@ -1,21 +1,19 @@
 openapi: 3.1.0
 info:
   title: Platform Demo Identity API
-  version: 1.3.0
-  summary: Current identity API plus planned auth/session contract.
+  version: 1.4.0
+  summary: Current identity API plus planned auth and federation contract.
   description: |
-    Current contract for the identity module in the modular monolith.
+    Contract-first definition for the identity module.
 
-    Current implementation:
-    - Registration is synchronous and returns the created user identifier.
-    - Registration supports idempotent retries via `Idempotency-Key`.
+    Implemented now:
+    - Register user
+    - Get user by id
 
-    Planned next auth slice:
-    - Login, refresh, logout, and me endpoints.
-    - Access tokens expire after 15 minutes.
-    - Refresh tokens expire after 30 days.
-    - Refresh tokens rotate on every successful refresh.
-    - Logout revokes the active refresh token/session.
+    Planned next:
+    - login / refresh / logout / me
+    - OIDC auth endpoints
+    - provider connection management endpoints
 servers:
   - url: http://localhost:8080
     description: Local development
@@ -24,6 +22,7 @@ security:
 tags:
   - name: Registration
   - name: Auth
+  - name: Connections
   - name: Users
 
 paths:
@@ -59,14 +58,8 @@ paths:
   /v1/login:
     post:
       tags: [Auth]
-      summary: Authenticate a user and create a session
-      description: |
-        Planned endpoint.
-
-        Intended token policy:
-        - Access token lifetime: 15 minutes (`expires_in=900`).
-        - Refresh token lifetime: 30 days (`refresh_expires_in=2592000`).
-        - Refresh token is rotated whenever `/v1/refresh` succeeds.
+      summary: Authenticate with local credentials
+      description: Planned local auth endpoint.
       operationId: login
       security: []
       requestBody:
@@ -86,21 +79,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '429':
-          $ref: '#/components/responses/RateLimited'
 
   /v1/refresh:
     post:
       tags: [Auth]
       summary: Rotate refresh token and mint a new access token
-      description: |
-        Planned endpoint.
-
-        Intended refresh behavior:
-        - The provided refresh token must be active and unexpired.
-        - A successful refresh invalidates the previous refresh token.
-        - The response returns a new access token and a new refresh token.
-        - Reuse of a rotated refresh token is invalid and should be rejected.
+      description: Planned local auth endpoint.
       operationId: refresh
       security: []
       requestBody:
@@ -120,19 +104,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '429':
-          $ref: '#/components/responses/RateLimited'
 
   /v1/logout:
     post:
       tags: [Auth]
       summary: Revoke the current refresh token/session
-      description: |
-        Planned endpoint.
-
-        Intended logout behavior:
-        - Revokes the submitted refresh token/session.
-        - Subsequent refresh attempts with that token must fail.
+      description: Planned local auth endpoint.
       operationId: logout
       requestBody:
         required: true
@@ -152,7 +129,7 @@ paths:
     get:
       tags: [Auth]
       summary: Get the current authenticated user/session context
-      description: Planned endpoint.
+      description: Planned local auth endpoint.
       operationId: me
       responses:
         '200':
@@ -163,6 +140,115 @@ paths:
                 $ref: '#/components/schemas/MeResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /v1/auth/oidc/login:
+    post:
+      tags: [Auth]
+      summary: Begin or complete OIDC login
+      description: Planned OIDC/social auth endpoint.
+      operationId: oidcLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OidcLoginRequest'
+      responses:
+        '200':
+          description: OIDC-authenticated session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/auth/oidc/callback:
+    post:
+      tags: [Auth]
+      summary: Complete OIDC callback exchange
+      description: Planned OIDC/social auth endpoint.
+      operationId: oidcCallback
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OidcCallbackRequest'
+      responses:
+        '200':
+          description: OIDC callback accepted and session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/connections:
+    get:
+      tags: [Connections]
+      summary: List linked provider connections
+      description: Planned account-linking endpoint.
+      operationId: listConnections
+      responses:
+        '200':
+          description: Linked provider connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Connection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/connections/{provider}:
+    post:
+      tags: [Connections]
+      summary: Link a provider connection to the current account
+      description: Planned account-linking endpoint.
+      operationId: createConnection
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConnectionRequest'
+      responses:
+        '201':
+          description: Provider connection created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags: [Connections]
+      summary: Remove a linked provider connection
+      description: Planned account-linking endpoint.
+      operationId: deleteConnection
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+      responses:
+        '204':
+          description: Provider connection removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /v1/users/{userId}:
     get:
@@ -195,6 +281,12 @@ components:
   parameters:
     UserId:
       name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    Provider:
+      name: provider
       in: path
       required: true
       schema:
@@ -303,6 +395,48 @@ components:
         refresh_token:
           type: string
 
+    OidcLoginRequest:
+      type: object
+      required: [provider]
+      properties:
+        provider:
+          type: string
+        authorization_code:
+          type: string
+        id_token:
+          type: string
+        redirect_uri:
+          type: string
+          format: uri
+
+    OidcCallbackRequest:
+      type: object
+      required: [provider, code]
+      properties:
+        provider:
+          type: string
+        code:
+          type: string
+        redirect_uri:
+          type: string
+          format: uri
+        state:
+          type: string
+
+    CreateConnectionRequest:
+      type: object
+      required: [provider]
+      properties:
+        provider:
+          type: string
+        authorization_code:
+          type: string
+        id_token:
+          type: string
+        redirect_uri:
+          type: string
+          format: uri
+
     TokenSessionResponse:
       type: object
       required: [access_token, token_type, expires_in, refresh_token, refresh_expires_in]
@@ -314,17 +448,14 @@ components:
           const: Bearer
         expires_in:
           type: integer
-          description: Access token lifetime in seconds.
           example: 900
         refresh_token:
           type: string
         refresh_expires_in:
           type: integer
-          description: Refresh token lifetime in seconds.
           example: 2592000
         scope:
           type: string
-          description: Space-delimited scopes when applicable.
 
     MeResponse:
       type: object
@@ -334,10 +465,20 @@ components:
           $ref: '#/components/schemas/User'
         session_expires_in:
           type: integer
-          description: Remaining access-token lifetime in seconds when returned.
         refresh_expires_in:
           type: integer
-          description: Remaining refresh-token lifetime in seconds when returned.
+
+    Connection:
+      type: object
+      required: [provider, subject, linked_at]
+      properties:
+        provider:
+          type: string
+        subject:
+          type: string
+        linked_at:
+          type: string
+          format: date-time
 
     User:
       type: object
@@ -367,14 +508,6 @@ components:
           properties:
             code:
               type: string
-              enum:
-                - invalid_request
-                - unauthorized
-                - forbidden
-                - not_found
-                - conflict
-                - rate_limited
-                - internal_error
             message:
               type: string
             request_id:

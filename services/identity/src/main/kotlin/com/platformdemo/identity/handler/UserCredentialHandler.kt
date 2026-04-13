@@ -1,8 +1,8 @@
 package com.platformdemo.identity.handler
 
-import com.platformdemo.identity.entity.StoredUserCredential
+import com.platformdemo.identity.repository.postgres.entity.UserCredentialRecord
 import com.platformdemo.identity.event.UserRegisteredEvent
-import com.platformdemo.identity.repository.UserCredentialRepository
+import com.platformdemo.identity.repository.postgres.UserCredentialRepository
 import org.axonframework.config.ProcessingGroup
 import org.axonframework.eventhandling.EventHandler
 import org.axonframework.eventhandling.EventMessage
@@ -23,7 +23,7 @@ class UserCredentialHandler(
             ?: throw IllegalStateException("UserRegisteredEvent missing password hash for user ${event.userId}")
 
         userCredentialRepository.save(
-            StoredUserCredential(
+            UserCredentialRecord(
                 userId = event.userId,
                 email = event.email,
                 passwordHash = passwordHash,
