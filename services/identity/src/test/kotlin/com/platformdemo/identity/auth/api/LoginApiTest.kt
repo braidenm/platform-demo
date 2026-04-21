@@ -19,6 +19,7 @@ import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.web.reactive.server.EntityExchangeResult
 import org.springframework.test.web.reactive.server.WebTestClient
+import java.security.MessageDigest
 import java.time.Duration
 import java.util.Locale
 import java.util.UUID
@@ -97,6 +98,7 @@ class LoginApiTest : BaseTest() {
                 assertThat(sessionRow["user_id"]).isEqualTo(registerResult.userId)
                 assertThat(sessionRow["provider"]).isEqualTo("LOCAL")
                 assertThat(refreshTokenHash).hasSize(64)
+                assertThat(refreshTokenHash).isEqualTo(sha256Hex(loginResponse.refreshToken))
                 assertThat(refreshTokenHash).isNotEqualTo(loginResponse.refreshToken)
                 assertThat(sessionRow["revoked_at"]).isNull()
                 assertThat(countAuthSessionsByUser(registerResult.userId)).isEqualTo(1L)
@@ -165,6 +167,131 @@ class LoginApiTest : BaseTest() {
             .expectStatus().isOk
     }
 
+    @Test
+    fun `login should return unauthorized for inactive credential status and avoid session write`() {
+        val password = "S3curePassw0rd!"
+        val registerRequest = TestDataFactory.registerUserRequest(
+            email = TestDataFactory.uniqueEmail("login-inactive"),
+            password = password
+        )
+        val registerResult = submitRegisterUser(
+            request = registerRequest,
+            idempotencyKey = newIdempotencyKey("login-inactive-register")
+        )
+
+        await()
+            .atMost(Duration.ofSeconds(10))
+            .untilAsserted {
+                assertThat(countDomainEventsForUser(registerResult.userId)).isEqualTo(1L)
+            }
+
+        jdbcTemplate.update(
+            """
+            update identity.identity_user_credentials
+            set status = ?, updated_at = now()
+            where user_id = ?
+            """.trimIndent(),
+            "INACTIVE",
+            registerResult.userId
+        )
+
+        val result: EntityExchangeResult<ErrorEnvelope> = webTestClient.post()
+            .uri("/v1/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                TestDataFactory.loginRequest(
+                    email = registerResult.email,
+                    password = password
+                )
+            )
+            .exchange()
+            .expectStatus().isUnauthorized
+            .expectBody(ErrorEnvelope::class.java)
+            .returnResult()
+
+        val errorEnvelope = result.responseBody!!
+        assertThat(errorEnvelope.error.code).isEqualTo("unauthorized")
+        assertThat(errorEnvelope.error.message).isEqualTo("Invalid email or password")
+        assertThat(countAuthSessionsByUser(registerResult.userId)).isEqualTo(0L)
+        assertThat(countDomainEventsForUser(registerResult.userId)).isEqualTo(1L)
+    }
+
+    @Test
+    fun `login should normalize mixed-case email before credential lookup`() {
+        val password = "S3curePassw0rd!"
+        val registerRequest = TestDataFactory.registerUserRequest(
+            email = TestDataFactory.uniqueEmail("login-normalize"),
+            password = password
+        )
+        val registerResult = submitRegisterUser(
+            request = registerRequest,
+            idempotencyKey = newIdempotencyKey("login-normalize-register")
+        )
+
+        await()
+            .atMost(Duration.ofSeconds(10))
+            .untilAsserted {
+                assertThat(countDomainEventsForUser(registerResult.userId)).isEqualTo(1L)
+            }
+
+        val loginResponse = submitLogin(
+            TestDataFactory.loginRequest(
+                email = registerResult.email.uppercase(Locale.US),
+                password = password
+            )
+        )
+
+        assertThat(loginResponse.tokenType).isEqualTo("Bearer")
+        assertThat(loginResponse.accessToken).startsWith("atk_")
+        assertThat(loginResponse.refreshToken).startsWith("rtk_")
+        assertThat(countAuthSessionsByUser(registerResult.userId)).isEqualTo(1L)
+    }
+
+    @Test
+    fun `login should return unauthorized for unknown email and keep session table unchanged`() {
+        val result: EntityExchangeResult<ErrorEnvelope> = webTestClient.post()
+            .uri("/v1/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                TestDataFactory.loginRequest(
+                    email = TestDataFactory.uniqueEmail("login-unknown"),
+                    password = "S3curePassw0rd!"
+                )
+            )
+            .exchange()
+            .expectStatus().isUnauthorized
+            .expectBody(ErrorEnvelope::class.java)
+            .returnResult()
+
+        val errorEnvelope = result.responseBody!!
+        assertThat(errorEnvelope.error.code).isEqualTo("unauthorized")
+        assertThat(errorEnvelope.error.message).isEqualTo("Invalid email or password")
+        assertThat(countAuthSessions()).isEqualTo(0L)
+    }
+
+    @Test
+    fun `login should return bad request for invalid payload and keep session table unchanged`() {
+        val result: EntityExchangeResult<ErrorEnvelope> = webTestClient.post()
+            .uri("/v1/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                TestDataFactory.loginRequest(
+                    email = "not-an-email",
+                    password = "short"
+                )
+            )
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectBody(ErrorEnvelope::class.java)
+            .returnResult()
+
+        val errorEnvelope = result.responseBody!!
+        assertThat(errorEnvelope.error.code).isEqualTo("invalid_request")
+        assertThat(errorEnvelope.error.message).isEqualTo("Request validation failed")
+        assertThat(errorEnvelope.error.details).containsKeys("email", "password")
+        assertThat(countAuthSessions()).isEqualTo(0L)
+    }
+
     private fun submitRegisterUser(
         request: RegisterUserRequest,
         idempotencyKey: String
@@ -203,6 +330,13 @@ class LoginApiTest : BaseTest() {
         ) ?: 0L
     }
 
+    private fun countAuthSessions(): Long {
+        return jdbcTemplate.queryForObject(
+            "select count(*) from identity.identity_auth_sessions",
+            Long::class.java
+        ) ?: 0L
+    }
+
     private fun countDomainEventsForUser(userId: String): Long {
         return jdbcTemplate.queryForObject(
             """
@@ -227,6 +361,11 @@ class LoginApiTest : BaseTest() {
 
     private fun newIdempotencyKey(prefix: String): String {
         return "idem-$prefix-${UUID.randomUUID().toString().replace("-", "")}"
+    }
+
+    private fun sha256Hex(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { byte -> "%02x".format(byte) }
     }
 
     companion object {

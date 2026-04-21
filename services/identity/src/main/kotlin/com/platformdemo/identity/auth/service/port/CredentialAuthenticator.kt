@@ -3,7 +3,8 @@ package com.platformdemo.identity.auth.service.port
 data class AuthenticatedUser(
     val userId: String,
     val email: String,
-    val status: String
+    val status: String,
+    val provider: String
 )
 
 fun interface CredentialAuthenticator {

@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/platformdemo?currentSchema=identity,public
+    url: jdbc:postgresql://${TEST_DB_HOST:localhost}:${TEST_DB_PORT:55433}/platformdemo?currentSchema=identity,public
     username: platformdemo
     password: platformdemo_password
     driver-class-name: org.postgresql.Driver
@@ -18,8 +18,8 @@ spring:
             non_contextual_creation: true
   data:
     mongodb:
-      host: localhost
-      port: 27017
+      host: ${TEST_MONGO_HOST:localhost}
+      port: ${TEST_MONGO_PORT:57017}
       database: platformdemo_test
       username: platformdemo
       password: platformdemo_password

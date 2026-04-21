@@ -11,9 +11,9 @@ Machine-readable contract:
 ### Implemented now
 - `POST /v1/register-user`
 - `GET /v1/users/{userId}`
+- `POST /v1/login`
 
 ### Planned next
-- `POST /v1/login`
 - `POST /v1/refresh`
 - `POST /v1/logout`
 - `GET /v1/me`
@@ -62,7 +62,16 @@ Implementation expectation:
 - outbound integration event publishing happens through event handlers/listeners
 - idempotency must hold across retries, projections, and outbound publication
 
-## 3. Auth Session Policy (planned next slice)
+## 3. Auth Session Policy (login slice implemented)
+
+### Current login behavior
+- validates local email/password credentials through an internal auth-provider port
+- normalizes incoming email case before credential lookup
+- rejects inactive credential status with the same `401 unauthorized` contract as invalid credentials
+- returns access + refresh tokens with TTLs aligned to this contract
+- persists provider-attributed session metadata sourced from the internal auth-provider adapter
+- persists refresh-token-backed session state with only a token hash stored at rest
+- invalid credentials return `401 unauthorized` without creating session rows
 
 ### Access token
 - TTL: **15 minutes**

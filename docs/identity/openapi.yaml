@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Platform Demo Identity API
-  version: 1.5.0
+  version: 1.5.1
   summary: Current identity API plus planned auth and federation contract.
   description: |
     Contract-first definition for the identity module.
@@ -383,6 +383,8 @@ components:
           format: email
         password:
           type: string
+          minLength: 8
+          maxLength: 128
 
     RefreshRequest:
       type: object

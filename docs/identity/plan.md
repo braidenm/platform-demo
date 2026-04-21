@@ -9,10 +9,12 @@ It is intentionally practical: what is done, what is next, and what is deferred.
 - [x] `POST /v1/register-user`
 - [x] `GET /v1/users/{userId}`
 - [x] `POST /v1/login`
+- [x] login service ports for credential auth, token issuing, and session persistence
 - [x] public register response no longer exposes command internals
 - [x] compose-backed service-level test setup for identity
+- [x] CI test-infrastructure isolation via dedicated compose project/ports and bounded health waits
 - [x] identity module refactor toward clearer package structure
-- [x] OpenAPI/docs updated for current registration slice
+- [x] OpenAPI/docs updated for registration + login slices
 
 ### In Progress / needs hardening
 - [x] stabilize the register-user CQRS/Axon implementation so tests are consistently green

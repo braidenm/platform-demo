@@ -25,11 +25,13 @@ class LocalCredentialAuthenticator(
         return AuthenticatedUser(
             userId = storedCredential.userId,
             email = storedCredential.email,
-            status = storedCredential.status
+            status = storedCredential.status,
+            provider = LOCAL_PROVIDER
         )
     }
 
     companion object {
         private const val ACTIVE_STATUS = "ACTIVE"
+        private const val LOCAL_PROVIDER = "LOCAL"
     }
 }

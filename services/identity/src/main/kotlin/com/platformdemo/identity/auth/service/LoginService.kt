@@ -1,13 +1,14 @@
 package com.platformdemo.identity.auth.service
 
-import com.platformdemo.identity.auth.endpoint.request.LoginRequest
-import com.platformdemo.identity.auth.endpoint.view.TokenSessionResponse
+import com.platformdemo.identity.auth.service.model.LoginCommand
+import com.platformdemo.identity.auth.service.model.LoginResult
+import com.platformdemo.identity.auth.service.port.AuthSessionStore
 import com.platformdemo.identity.auth.service.port.CredentialAuthenticator
+import com.platformdemo.identity.auth.service.port.NewAuthSession
 import com.platformdemo.identity.auth.service.port.SessionTokenIssuer
-import com.platformdemo.identity.auth.session.AuthSessionRecord
-import com.platformdemo.identity.auth.session.AuthSessionRepository
 import com.platformdemo.identity.handler.UnauthorizedException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -17,22 +18,23 @@ import java.util.UUID
 class LoginService(
     private val credentialAuthenticator: CredentialAuthenticator,
     private val sessionTokenIssuer: SessionTokenIssuer,
-    private val authSessionRepository: AuthSessionRepository,
-    private val clock: Clock = Clock.systemUTC()
+    private val authSessionStore: AuthSessionStore,
+    private val clock: Clock
 ) {
 
-    fun login(request: LoginRequest): TokenSessionResponse {
-        val authenticatedUser = credentialAuthenticator.authenticate(request.email, request.password)
+    @Transactional
+    fun login(command: LoginCommand): LoginResult {
+        val authenticatedUser = credentialAuthenticator.authenticate(command.email, command.password)
             ?: throw UnauthorizedException("Invalid email or password")
 
         val issuedAt = Instant.now(clock)
         val issuedTokens = sessionTokenIssuer.issue(authenticatedUser.userId, issuedAt)
 
-        authSessionRepository.save(
-            AuthSessionRecord(
+        authSessionStore.create(
+            NewAuthSession(
                 sessionId = newPrefixedId("ses"),
                 userId = authenticatedUser.userId,
-                provider = LOCAL_PROVIDER,
+                provider = authenticatedUser.provider,
                 refreshTokenHash = issuedTokens.refreshTokenHash,
                 createdAt = issuedAt,
                 updatedAt = issuedAt,
@@ -40,7 +42,7 @@ class LoginService(
             )
         )
 
-        return TokenSessionResponse(
+        return LoginResult(
             accessToken = issuedTokens.accessToken,
             tokenType = TOKEN_TYPE_BEARER,
             expiresIn = Duration.between(issuedAt, issuedTokens.accessTokenExpiresAt).seconds.toInt(),
@@ -54,7 +56,6 @@ class LoginService(
     }
 
     companion object {
-        private const val LOCAL_PROVIDER = "LOCAL"
         private const val TOKEN_TYPE_BEARER = "Bearer"
     }
 }
