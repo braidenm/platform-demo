@@ -1,27 +1,62 @@
 package com.platformdemo.identity.auth.service.provider
 
+import com.platformdemo.identity.config.AccessTokenProperties
 import com.platformdemo.identity.auth.service.port.IssuedSessionTokens
+import com.platformdemo.identity.auth.service.port.RefreshTokenHasher
 import com.platformdemo.identity.auth.service.port.SessionTokenIssuer
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm
+import org.springframework.security.oauth2.jwt.JwtClaimsSet
+import org.springframework.security.oauth2.jwt.JwtEncoder
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters
+import org.springframework.security.oauth2.jwt.JwsHeader
 import org.springframework.stereotype.Component
-import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.Base64
 
 @Component
-class RandomSessionTokenIssuer : SessionTokenIssuer {
+class RandomSessionTokenIssuer(
+    private val jwtEncoder: JwtEncoder,
+    private val accessTokenProperties: AccessTokenProperties,
+    private val refreshTokenHasher: RefreshTokenHasher
+) : SessionTokenIssuer {
 
     private val secureRandom = SecureRandom()
     private val base64UrlEncoder = Base64.getUrlEncoder().withoutPadding()
 
-    override fun issue(userId: String, issuedAt: Instant): IssuedSessionTokens {
-        val accessToken = tokenWithPrefix("atk")
+    override fun issue(
+        userId: String,
+        sessionId: String,
+        provider: String,
+        issuedAt: Instant
+    ): IssuedSessionTokens {
+        val accessTokenExpiresAt = issuedAt.plusSeconds(ACCESS_TOKEN_TTL_SECONDS)
+        val accessTokenClaims = JwtClaimsSet.builder()
+            .issuer(accessTokenProperties.issuer)
+            .subject(userId)
+            .audience(listOf(accessTokenProperties.audience))
+            .issuedAt(issuedAt)
+            .expiresAt(accessTokenExpiresAt)
+            .id(tokenWithPrefix("jti"))
+            .claim("scope", accessTokenProperties.scope)
+            .claim("token_use", "access")
+            .claim("sid", sessionId)
+            .claim("provider", provider)
+            .build()
+
+        val accessToken = jwtEncoder.encode(
+            JwtEncoderParameters.from(
+                JwsHeader.with(MacAlgorithm.HS256).build(),
+                accessTokenClaims
+            )
+        ).tokenValue
+
         val refreshToken = tokenWithPrefix("rtk")
         return IssuedSessionTokens(
             accessToken = accessToken,
-            accessTokenExpiresAt = issuedAt.plusSeconds(ACCESS_TOKEN_TTL_SECONDS),
+            accessTokenExpiresAt = accessTokenExpiresAt,
             refreshToken = refreshToken,
-            refreshTokenHash = sha256Hex(refreshToken),
+            refreshTokenHash = refreshTokenHasher.hash(refreshToken),
             refreshTokenExpiresAt = issuedAt.plusSeconds(REFRESH_TOKEN_TTL_SECONDS)
         )
     }
@@ -30,11 +65,6 @@ class RandomSessionTokenIssuer : SessionTokenIssuer {
         val tokenBytes = ByteArray(TOKEN_BYTE_LENGTH)
         secureRandom.nextBytes(tokenBytes)
         return "${prefix}_${base64UrlEncoder.encodeToString(tokenBytes)}"
-    }
-
-    private fun sha256Hex(value: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
-        return digest.joinToString("") { byte -> "%02x".format(byte) }
     }
 
     companion object {

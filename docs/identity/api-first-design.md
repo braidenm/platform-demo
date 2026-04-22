@@ -12,11 +12,13 @@ Machine-readable contract:
 - `POST /v1/register-user`
 - `GET /v1/users/{userId}`
 - `POST /v1/login`
-
-### Planned next
 - `POST /v1/refresh`
 - `POST /v1/logout`
-- `GET /v1/me`
+- `GET /v1/session`
+
+### Planned next
+- harden session-family revocation telemetry/audit events
+- tighten claim-to-authority conventions for cross-service policy consistency
 
 ### Planned after core local auth
 - `POST /v1/auth/oidc/login`
@@ -62,7 +64,7 @@ Implementation expectation:
 - outbound integration event publishing happens through event handlers/listeners
 - idempotency must hold across retries, projections, and outbound publication
 
-## 3. Auth Session Policy (login slice implemented)
+## 3. Auth Session Policy (local auth core implemented)
 
 ### Current login behavior
 - validates local email/password credentials through an internal auth-provider port
@@ -72,6 +74,25 @@ Implementation expectation:
 - persists provider-attributed session metadata sourced from the internal auth-provider adapter
 - persists refresh-token-backed session state with only a token hash stored at rest
 - invalid credentials return `401 unauthorized` without creating session rows
+
+### Current refresh behavior
+- validates the provided refresh token by hash against persisted session token state
+- rotates refresh token on success:
+  - previous token marked `ROTATED`
+  - replacement token marked `ACTIVE`
+- detects rotated-token reuse and revokes the full session token family
+- returns `401 unauthorized` for invalid/revoked/expired tokens
+
+### Current logout behavior
+- accepts refresh token and revokes the owning session
+- revokes all refresh tokens in that session family
+- returns `204 No Content` on successful revocation
+
+### Current session-read behavior
+- `GET /v1/session` requires bearer access token
+- access token is validated via Spring Security resource-server pipeline
+- method-level guard uses `@PreAuthorize` to enforce scope/authority checks
+- response includes current user projection plus session id/provider/status and access/refresh expiry context
 
 ### Access token
 - TTL: **15 minutes**
@@ -121,7 +142,7 @@ We are intentionally avoiding provider-specific concepts in the core public loca
 - `POST /v1/login`
 - `POST /v1/refresh`
 - `POST /v1/logout`
-- `GET /v1/me`
+- `GET /v1/session`
 
 ### OIDC / social auth APIs
 - `POST /v1/auth/oidc/login`
@@ -165,6 +186,22 @@ This should let us:
 - implement local email/password now
 - add Auth0 later without rewriting core identity/session concepts
 - support linked accounts and provider connections in a clean way
+
+## 6.1 Spring `@PreAuthorize` and Resource-Server Direction
+
+Answer:
+- Yes, APIs that authorize bearer access tokens with `@PreAuthorize` should run as Spring Security resource servers.
+- Identity should issue short-lived access tokens; resource APIs should validate them locally (signature + issuer + audience + expiration) and derive authorities for `@PreAuthorize`.
+- Refresh tokens remain stateful and identity-owned; resource APIs should not inspect refresh tokens.
+
+Current local implementation direction:
+- access tokens are signed JWT bearer tokens
+- identity service validates bearer tokens using resource-server config for protected endpoints (for example `/v1/session`)
+- method-level authorization is enabled and used through `@PreAuthorize`
+
+Future-compatible direction:
+- keep token claim contracts stable (`sub`, `scope`, issuer/audience semantics)
+- evolve signing/distribution (for example to asymmetric keys/JWKS or external IdP) behind the same resource-server boundary so service-level authorization code remains unchanged
 
 ## 7. Outbound Domain Events
 

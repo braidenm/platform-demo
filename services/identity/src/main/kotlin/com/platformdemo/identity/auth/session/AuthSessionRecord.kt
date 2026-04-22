@@ -31,13 +31,13 @@ class AuthSessionRecord(
     @Column(name = "provider", nullable = false, length = 32)
     val provider: String,
     @Column(name = "refresh_token_hash", nullable = false, length = 64)
-    val refreshTokenHash: String,
+    var refreshTokenHash: String,
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant,
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant,
     @Column(name = "expires_at", nullable = false)
-    val expiresAt: Instant,
+    var expiresAt: Instant,
     @Column(name = "revoked_at")
     var revokedAt: Instant? = null
 )

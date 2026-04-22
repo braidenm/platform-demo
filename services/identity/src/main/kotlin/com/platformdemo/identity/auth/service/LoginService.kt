@@ -28,11 +28,17 @@ class LoginService(
             ?: throw UnauthorizedException("Invalid email or password")
 
         val issuedAt = Instant.now(clock)
-        val issuedTokens = sessionTokenIssuer.issue(authenticatedUser.userId, issuedAt)
+        val sessionId = newPrefixedId("ses")
+        val issuedTokens = sessionTokenIssuer.issue(
+            userId = authenticatedUser.userId,
+            sessionId = sessionId,
+            provider = authenticatedUser.provider,
+            issuedAt = issuedAt
+        )
 
         authSessionStore.create(
             NewAuthSession(
-                sessionId = newPrefixedId("ses"),
+                sessionId = sessionId,
                 userId = authenticatedUser.userId,
                 provider = authenticatedUser.provider,
                 refreshTokenHash = issuedTokens.refreshTokenHash,

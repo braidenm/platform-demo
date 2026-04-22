@@ -9,7 +9,12 @@ It is intentionally practical: what is done, what is next, and what is deferred.
 - [x] `POST /v1/register-user`
 - [x] `GET /v1/users/{userId}`
 - [x] `POST /v1/login`
+- [x] `POST /v1/refresh`
+- [x] `POST /v1/logout`
+- [x] `GET /v1/session`
 - [x] login service ports for credential auth, token issuing, and session persistence
+- [x] refresh token persistence with rotation + reuse detection semantics
+- [x] resource-server compatible access token validation path for `@PreAuthorize`
 - [x] public register response no longer exposes command internals
 - [x] compose-backed service-level test setup for identity
 - [x] CI test-infrastructure isolation via dedicated compose project/ports and bounded health waits
@@ -59,19 +64,31 @@ It is intentionally practical: what is done, what is next, and what is deferred.
 - should verify local credentials through a clear internal auth interface/port
 
 ### 2. Refresh
-- [ ] `POST /v1/refresh`
+- [x] `POST /v1/refresh`
 - rotates refresh token
 - synchronous
 - must support reuse detection and revocation semantics
 
 ### 3. Logout
-- [ ] `POST /v1/logout`
+- [x] `POST /v1/logout`
 - revokes refresh token/session
 - synchronous
 
-### 4. Me
-- [ ] `GET /v1/me`
+### 4. Session Read
+- [x] `GET /v1/session`
 - returns current authenticated user/session context
+
+## API Authorization Integration (`@PreAuthorize`)
+
+- APIs that consume access tokens should run as Spring Security resource servers.
+- Bearer access token validation should happen before controller/service code:
+  - signature
+  - issuer
+  - audience
+  - expiration
+- Method-level authorization should use `@PreAuthorize` against token-derived authorities/claims.
+- In local mode we can validate with a shared signing secret; for extracted/multi-service deployment we should move to asymmetric signing + JWKS distribution while keeping the same `@PreAuthorize` model.
+- Refresh/session state remains identity-owned; downstream resource APIs should not perform refresh-token checks.
 
 ## Planned Auth Policy
 
@@ -87,7 +104,7 @@ It is intentionally practical: what is done, what is next, and what is deferred.
 - `POST /v1/login`
 - `POST /v1/refresh`
 - `POST /v1/logout`
-- `GET /v1/me`
+- `GET /v1/session`
 
 ### OIDC / social auth
 - `POST /v1/auth/oidc/login`

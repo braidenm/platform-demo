@@ -41,3 +41,11 @@ axon:
     processors:
       identity:
         mode: subscribing
+
+identity:
+  auth:
+    access-token:
+      issuer: platform-demo-identity
+      audience: platform-demo-api
+      scope: identity:session:read identity:user:read
+      signing-secret: platform-demo-test-signing-secret-change-me-32-bytes

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Platform Demo Identity API
-  version: 1.5.1
+  version: 1.7.0
   summary: Current identity API plus planned auth and federation contract.
   description: |
     Contract-first definition for the identity module.
@@ -10,9 +10,12 @@ info:
     - Register user
     - Get user by id
     - Login with local credentials
+    - Refresh token rotation
+    - Logout session revocation
+    - Session read endpoint via bearer access token
 
     Planned next:
-    - refresh / logout / me
+    - harden auth telemetry/audit events
     - OIDC auth endpoints
     - provider connection management endpoints
 servers:
@@ -62,7 +65,7 @@ paths:
       summary: Authenticate with local credentials
       description: |
         Validates local email/password credentials and creates a refresh-backed session.
-        Returns a short-lived access token and a long-lived refresh token.
+        Returns a short-lived signed JWT access token and a long-lived refresh token.
       operationId: login
       security: []
       requestBody:
@@ -87,7 +90,9 @@ paths:
     post:
       tags: [Auth]
       summary: Rotate refresh token and mint a new access token
-      description: Planned local auth endpoint.
+      description: |
+        Validates refresh token state, rotates refresh token, and mints a new access token.
+        Refresh token reuse after rotation revokes the session token family.
       operationId: refresh
       security: []
       requestBody:
@@ -112,8 +117,11 @@ paths:
     post:
       tags: [Auth]
       summary: Revoke the current refresh token/session
-      description: Planned local auth endpoint.
+      description: |
+        Revokes the session tied to the provided refresh token and revokes
+        all refresh tokens in that session family.
       operationId: logout
+      security: []
       requestBody:
         required: true
         content:
@@ -128,19 +136,21 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /v1/me:
+  /v1/session:
     get:
       tags: [Auth]
-      summary: Get the current authenticated user/session context
-      description: Planned local auth endpoint.
-      operationId: me
+      summary: Get the current authenticated session context
+      description: |
+        Requires a bearer access token validated by resource-server rules.
+        Intended for `@PreAuthorize`-based method-level authorization flows with a session-oriented response.
+      operationId: getSession
       responses:
         '200':
-          description: Current user context
+          description: Current session context
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MeResponse'
+                $ref: '#/components/schemas/SessionResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -462,16 +472,24 @@ components:
         scope:
           type: string
 
-    MeResponse:
+    SessionResponse:
       type: object
-      required: [user]
+      required: [session_id, user, provider, session_status, access_token_expires_in]
       properties:
+        session_id:
+          type: string
         user:
           $ref: '#/components/schemas/User'
-        session_expires_in:
+        provider:
+          type: string
+          example: LOCAL
+        session_status:
+          type: string
+          enum: [ACTIVE, EXPIRED, REVOKED]
+        access_token_expires_in:
           type: integer
-        refresh_expires_in:
-          type: integer
+        refresh_token_expires_in:
+          type: [integer, 'null']
 
     Connection:
       type: object

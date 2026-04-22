@@ -1,0 +1,49 @@
+@startuml
+title Login, Access, Refresh Rotation, and Session Revocation
+
+actor User
+participant "App Frontend/API" as APP
+participant "Identity Service (AuthN)" as IDN
+database "Session Store" as SESS
+participant "Resource API\n(Spring Resource Server)" as API
+
+== Login ==
+User -> APP: Submit email/password
+APP -> IDN: POST /identity/v1/login
+IDN -> SESS: Create session + store refresh token hash (ACTIVE)
+IDN --> APP: access_token(JWT, short TTL) + refresh_token
+APP --> User: Session established
+
+== Access ==
+User -> APP: Request protected resource
+APP -> API: GET /api/... with Bearer access_token
+API -> API: Validate JWT (signature, iss, aud, exp)
+API -> API: @PreAuthorize checks (scope/claims)
+API --> APP: 200 OK
+APP --> User: Data
+
+APP -> IDN: GET /identity/v1/session (Bearer access_token)
+IDN -> SESS: Resolve sid claim to session state
+IDN --> APP: session_id + status + expiry context
+
+== Refresh ==
+User -> APP: Access token expired
+APP -> IDN: POST /identity/v1/refresh (refresh_token)
+IDN -> SESS: Verify refresh hash + ACTIVE + not expired + not revoked
+IDN -> SESS: Mark old refresh token ROTATED; insert new ACTIVE token
+IDN --> APP: New access_token + new refresh_token
+APP --> User: Continue without re-login
+
+== Reuse Detection ==
+APP -> IDN: POST /identity/v1/refresh (previous rotated token)
+IDN -> SESS: Detect ROTATED token reuse
+IDN -> SESS: Revoke session + revoke token family
+IDN --> APP: 401 Unauthorized
+
+== Logout ==
+User -> APP: Logout
+APP -> IDN: POST /identity/v1/logout (latest refresh token)
+IDN -> SESS: Revoke session + revoke token family
+IDN --> APP: 204 No Content
+
+@enduml

@@ -11,5 +11,10 @@ data class IssuedSessionTokens(
 )
 
 fun interface SessionTokenIssuer {
-    fun issue(userId: String, issuedAt: Instant): IssuedSessionTokens
+    fun issue(
+        userId: String,
+        sessionId: String,
+        provider: String,
+        issuedAt: Instant
+    ): IssuedSessionTokens
 }
