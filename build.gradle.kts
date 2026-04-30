@@ -1,3 +1,7 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
+import org.gradle.testing.jacoco.tasks.JacocoReport
+
 plugins {
     kotlin("jvm") version "2.1.0"
     kotlin("plugin.spring") version "2.1.0" apply false
@@ -18,6 +22,11 @@ allprojects {
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "io.spring.dependency-management")
+    apply(plugin = "jacoco")
+
+    extensions.configure<JacocoPluginExtension> {
+        toolVersion = "0.8.12"
+    }
 
     the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
         imports {
@@ -40,7 +49,23 @@ subprojects {
         }
     }
 
-    tasks.withType<Test> {
+    tasks.withType<Test>().configureEach {
         useJUnitPlatform()
+        finalizedBy(tasks.named("jacocoTestReport"))
     }
+
+    tasks.withType<JacocoReport>().configureEach {
+        dependsOn(tasks.withType<Test>())
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+            csv.required.set(false)
+        }
+    }
+}
+
+tasks.register("coverage") {
+    group = "verification"
+    description = "Runs tests and generates JaCoCo HTML/XML reports for all modules."
+    dependsOn(subprojects.map { "${it.path}:jacocoTestReport" })
 }

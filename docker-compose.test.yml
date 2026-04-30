@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:${TEST_DB_PORT:-55433}:5432"
+    environment:
+      - POSTGRES_DB=platformdemo
+      - POSTGRES_USER=platformdemo
+      - POSTGRES_PASSWORD=platformdemo_password
+    volumes:
+      - ./services/identity/src/test/resources/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platformdemo -d platformdemo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  mongodb:
+    image: mongo:7.0
+    ports:
+      - "127.0.0.1:${TEST_MONGO_PORT:-57017}:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=platformdemo
+      - MONGO_INITDB_ROOT_PASSWORD=platformdemo_password
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s

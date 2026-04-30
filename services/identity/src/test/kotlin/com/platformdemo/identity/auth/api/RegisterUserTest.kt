@@ -34,6 +34,11 @@ class RegisterUserTest : BaseTest() {
 
     @BeforeEach
     fun resetState() {
+        webTestClient = webTestClient.mutate()
+            .responseTimeout(Duration.ofSeconds(30))
+            .build()
+        jdbcTemplate.execute("TRUNCATE TABLE identity.identity_auth_refresh_tokens CASCADE")
+        jdbcTemplate.execute("TRUNCATE TABLE identity.identity_auth_sessions CASCADE")
         jdbcTemplate.execute("TRUNCATE TABLE identity.identity_user_credentials CASCADE")
         jdbcTemplate.execute("TRUNCATE TABLE identity.shared_idempotency_records CASCADE")
         jdbcTemplate.execute("TRUNCATE TABLE identity.token_entry CASCADE")

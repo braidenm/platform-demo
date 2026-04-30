@@ -18,6 +18,7 @@ This folder contains both Mermaid and PlantUML diagram versions.
 
 - Mermaid: [sequence-flows.md](./sequence-flows.md)
 - PlantUML:
+  - [sequence-login-access-refresh-session.puml](./sequence-login-access-refresh-session.puml)
   - [sequence-login-app-token.puml](./sequence-login-app-token.puml)
   - [sequence-token-exchange.puml](./sequence-token-exchange.puml)
   - [sequence-api-authorization.puml](./sequence-api-authorization.puml)

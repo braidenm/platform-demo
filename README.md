@@ -97,6 +97,7 @@ If you are deploying this application to a server with existing PostgreSQL and M
 
 The project uses a fully automated pipeline via GitHub Actions (`.github/workflows/docker-publish.yml`):
 1. **Build & Test**: Runs the Gradle build and service-level tests. The identity service tests are currently compose-backed and run against Postgres/Mongo test infrastructure started only for testing.
+   - The CI workflow uses a dedicated compose project name per run, ephemeral host-port mapping, bounded health-check waits, and guaranteed teardown to avoid collisions on shared/self-hosted runners.
 2. **Containerize**: Builds a multi-stage Docker image using JDK 21.
 3. **Publish**: Pushes the image to **GitHub Container Registry (GHCR)**.
 4. **Auto-Deploy**: Sends a `repository_dispatch` to my **Infrastructure Repository**, which triggers a self-hosted runner to pull and restart the service on my homelab server.

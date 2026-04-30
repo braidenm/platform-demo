@@ -55,3 +55,11 @@ axon:
     processors:
       identity:
         mode: tracking
+
+identity:
+  auth:
+    access-token:
+      issuer: platform-demo-identity
+      audience: platform-demo-api
+      scope: identity:session:read identity:user:read
+      signing-secret: ${IDENTITY_ACCESS_TOKEN_SIGNING_SECRET:platform-demo-dev-signing-secret-change-me-32-bytes}

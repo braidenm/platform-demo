@@ -1,6 +1,48 @@
 # Identity Sequence Flows
 
-## 1) Login + App-Scoped Token
+## 1) Login + Access + Refresh + Session Revocation
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant APP as App Frontend/API
+  participant IDN as Identity Service (AuthN)
+  participant SESS as Session Store
+  participant API as Resource API (Spring Resource Server)
+
+  U->>APP: Submit email/password
+  APP->>IDN: POST /identity/v1/login
+  IDN->>SESS: Create session + persist ACTIVE refresh token hash
+  IDN-->>APP: access_token (short-lived JWT) + refresh_token
+  APP-->>U: Session established
+
+  U->>APP: Call protected endpoint
+  APP->>API: Bearer access_token
+  API->>API: Validate JWT (signature, iss, aud, exp)
+  API->>API: @PreAuthorize(scope/claim checks)
+  API-->>APP: 200 OK
+
+  APP->>IDN: GET /identity/v1/session (Bearer access_token)
+  IDN->>SESS: Resolve sid claim to current session state
+  IDN-->>APP: session_id + status + expiry context
+
+  U->>APP: Access token expired
+  APP->>IDN: POST /identity/v1/refresh (refresh_token)
+  IDN->>SESS: Verify hash ACTIVE + not expired/revoked
+  IDN->>SESS: Mark old token ROTATED, issue new ACTIVE token
+  IDN-->>APP: new access_token + new refresh_token
+
+  APP->>IDN: POST /identity/v1/refresh (rotated token reused)
+  IDN->>SESS: Detect reuse and revoke session/token family
+  IDN-->>APP: 401 Unauthorized
+
+  U->>APP: Logout
+  APP->>IDN: POST /identity/v1/logout (latest refresh token)
+  IDN->>SESS: Revoke session + token family
+  IDN-->>APP: 204 No Content
+```
+
+## 2) Login + App-Scoped Token
 
 ```mermaid
 sequenceDiagram
@@ -17,7 +59,7 @@ sequenceDiagram
   APP-->>U: Session established
 ```
 
-## 2) Token Exchange for Org/App Context Switch
+## 3) Token Exchange for Org/App Context Switch
 
 ```mermaid
 sequenceDiagram
@@ -40,7 +82,7 @@ sequenceDiagram
   end
 ```
 
-## 3) API Authorization Check (Scope + Domain Rule)
+## 4) API Authorization Check (Scope + Domain Rule)
 
 ```mermaid
 sequenceDiagram
@@ -63,7 +105,7 @@ sequenceDiagram
   end
 ```
 
-## 4) Controlled Impersonation (Later Phase)
+## 5) Controlled Impersonation (Later Phase)
 
 ```mermaid
 sequenceDiagram
